@@ -1,0 +1,35 @@
+{
+  "name": "MEANcraft",
+  "version": "0.0.1",
+  "main": "server/app.js",
+  "repository": {
+    "type": "git",
+    "url": "http://github.com/frotunato/MEANcraft.git"
+  },
+  "dependencies": {
+    "express": "latest",
+    "morgan": "latest",
+    "body-parser": "latest",
+    "errorhandler": "latest",
+    "mongoose": "latest",
+    "jade": "latest",
+    "socket.io": "latest",
+    "lodash": "latest",
+    "compression": "latest",
+    "express-jwt": "latest",
+    "jsonwebtoken": "latest",
+    "gulp": "latest",
+    "gulp-uglify": "latest",
+    "gulp-order": "latest",
+    "gulp-ng-annotate": "latest",
+    "gulp-jshint": "latest",
+    "gulp-concat": "latest",
+    "gulp-strip-debug": "latest",
+    "gridfs-stream": "latest",
+    "multer": "latest",
+    "archiver": "latest",
+    "async": "latest",
+    "rimraf": "latest",
+    "tar-fs": "latest"
+  }
+}

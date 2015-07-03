@@ -1,0 +1,43 @@
+doctype html
+html(ng-app="MEANcraftApp")
+  head
+    title MEANcraft
+    <!--########################## ANGULAR CORE ###########################-->
+    script(defer src="bower_components/angular/angular.js")
+    script(defer src="bower_components/angular-route/angular-route.min.js")
+    script(defer src="bower_components/angular-resource/angular-resource.min.js")
+    <!--###################################################################-->
+    
+    <!--########################## APP MODULES ############################-->
+    script(defer src="app/app.js")
+    script(defer src="app/login/login.js")
+    script(defer src="app/overview/overview.js")
+    <!--################################################################## -->
+    
+    <!--######################## APP COMPONENTS ###########################-->
+    script(defer src="components/auth/auth.factory.js")
+    script(defer src="components/socket/socket.factory.js")
+    script(defer src="components/api/executable.factory.js")
+    <!--################################################################## -->
+
+    <!--######################## APP CONTROLLERS ##########################-->
+    script(defer src="app/login/login.controller.js")
+    script(defer src="app/overview/overview.controller.js")
+    <!--###################################################################-->
+    
+    <!--######################### APP FACTORIES ###########################-->
+    <!--###################################################################-->
+    
+    <!--######################### APP DIRECTIVES ##########################-->
+    script(defer src="app/overview/overview.directive.js")
+    <!--###################################################################-->
+    
+    <!--######################### ANGULAR EXTRAS ##########################-->
+    script(defer src="bower_components/angular-strap/dist/angular-strap.min.js")
+    script(defer src="bower_components/angular-strap/dist/angular-strap.tpl.min.js")
+    script(defer src="/socket.io/socket.io.js")
+    //script(defer src="bower_components/angular-socket-io/socket.js")
+    script(defer src="bower_components/angular-socket-io/socket.min.js")
+    script(defer src="bower_components/ng-flow/dist/ng-flow-standalone.js")
+    <!--###################################################################-->
+  body(ng-view)

@@ -1,0 +1,10 @@
+div(id="loginWrapper" class="popup")
+  h2(class="text-center") MEANcraft
+  form(role="form")
+    p
+      input(required class="form-control input-lg" id="username" type="text" ng-model="credentials.username")
+    p
+      input(required class="form-control input-lg" id="password" type="password" ng-model="credentials.password")
+      button(type="submit" ng-click="login()" class="btn btn-primary" style="width:100%")
+        span Login
+        span(class="glyphicon glyphicon-log-in")

@@ -1,0 +1,47 @@
+h4 Overview
+//button(ng-click="create()") Create!!
+//button(ng-click="drop()") Drop It!!
+//input(type="file" name="file" onchange="angular.element(this).scope().uploadFile(this.files)")
+
+button(ng-click="server.start()") Start!!
+button(ng-click="server.stop()") Stop!!
+select(ng-model="server.config.executable" ng-options="executable as executable.version group by executable.type for executable in data.executables")
+  option(value="") Select a JAR
+
+{{server.current.status}}
+
+input(ng-model="current.msg")
+button(ng-click="current.sendMsg()") Send
+button(ng-click="server.create()") Create map
+button(ng-click="server.backup()") Backup map
+button(ng-click="list()") A
+h4 Upload file
+  div(id="uploadBox")
+    span(id="uploadArea")
+      label(for="fileBox") Choose a file:
+        input(fileRead type="file" id="fileBox")
+      label(for="nameBox") Name:
+        input(type="text" id="nameBox")
+      button(type="button" ng-click="submit(file)" id="uploadButton") Upload
+h4 Chunk size selector:
+select(ng-model="chunkSize")
+  option(selected value="4") 4 bytes
+  option(selected value="8") 8 bytes
+  option(selected value="16") 16 bytes
+  option(selected value="32") 32 bytes
+  option(selected value="64") 64 bytes
+  option(selected value="1024") 1024 bytes
+  option(selected value="5024") 5024 bytes
+  option(selected value="9024") 9024 bytes
+  option(selected value="500000") 500000 bytes (500KB)
+  option(selected value="1000000") 1000000 bytes (1MB)
+  option(selected value="5000000") 5000000 bytes (5MB)
+  option(selected value="8000000") 8000000 bytes (8MB)
+  option(selected value="20000000") 20000000 bytes (20MB)
+
+//ul
+//  li(ng-repeat="map in data.maps") {{map.metadata}}
+button(ng-click="doPing()") Calculate ping     
+{{' ' + ping.value + ' ms'}}
+{{'(' + ping.status + ')'}}
+h4 Upload progress {{offset/1000000 | number:0}} MB /{{file.size/1000000 | number:0}} MB ({{100*offset/file.size | number:0}} %)
