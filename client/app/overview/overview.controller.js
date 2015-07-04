@@ -35,13 +35,12 @@ angular.module('MEANcraftApp.overview')
 
     $scope.submit = function (file) {
       if (file) {
+        var token = btoa(file.size) + '-' + btoa(file.name) + '-' + btoa(file.lastModified);
         $scope.parseFile(
           function (data, next) {
-            var token = btoa(file.size) + '-' + btoa(file.name) + '-' + btoa(file.lastModified); 
             UploadSocket.emit('chunk', {data: data, token: token}); 
             UploadSocket.once('chunk', function (response) {
               next();
-              console.log('beta time', Date.now() - betaTime);
             });
         }, function () {
           console.log('uploadCallback');
