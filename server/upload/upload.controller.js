@@ -15,20 +15,57 @@ function deepIndexOf (array, attr, value) {
   return res;
 }
 
+function base64Encode (unencoded) {
+  return new Buffer(unencoded || '').toString('base64');
+}
+
+/*
+  base64.decode = function (encoded) {
+    return new Buffer(encoded || '', 'base64').toString('utf8');
+  };
+*/
+
+function addSocket () {
+
+}
+
+function removeSocket () {
+
+}
+
 module.exports = function (app, uploadNsp) {
   
-  function begin () {
+  function begin (message) {
     console.log('UploadSocket [BEGIN]');
+    //var position = deepIndexOf(activeStreams, 'token', message.token);
+    if (!message) return;
+    var token = base64Encode(message.metadata.name + '-' + Date.now());
+    
+    var readStream = new Stream.Readable();
+    readStream._read = function noop () {
+      socket.emit('chunk', {chunk: token});
+    };
+
+    activeStreams.push({token: token, stream: readStream});
+    this.emit('begin', {token: token});
+    Model.insert(readStream, {
+      metadata: {
+        name: message.metadata.name,
+        type: message.metadata.type,
+        token: token
+      }
+    }, function () {
+      console.log('file upload');
+    });
+      
   }
 
   function end (message) {
     console.log('UploadSocket [END]');
+    if (!message) return;
     var position = deepIndexOf(activeStreams, 'token', message.token);
     activeStreams[position].stream.push(null);
     activeStreams.splice(position, 1);
-    ///activeStreams[position].stream.end(function () {
-    ///  activeStreams.splice(position, 1);
-    ///});
   }
 
   function ping () {
@@ -36,73 +73,12 @@ module.exports = function (app, uploadNsp) {
   }
 
   function chunk (message) {
-    //console.log('UploadSocket [CHUNK]');
-    var socket = this;
+    if (!message) return;
     var position = deepIndexOf(activeStreams, 'token', message.token);
     var currentStream = (position === -1) ? null : activeStreams[position].stream;
-    if (message) {
-      
-      /*
-      fs.appendFile('chunk.asd', message.data.chunk, function () {
-        //console.log('Processed token', message.token, Date.now() - alphaTime, 'ms');
-        //callback();
-      });
-      */
-
-      if (position === -1) {
-        console.log(message.token);
-        var readStream = new Stream.Readable();
-        readStream._read = function noop () {};
-        activeStreams.push({token: message.token, stream: readStream});
-        //var writeStream = fs.createWriteStream('./chunkStream', {flags: 'a', encoding: null, mode: 0666});
-        //activeStreams.push({token: message.token, stream: writeStream});
-        position = deepIndexOf(activeStreams, 'token', message.token);
-        currentStream = activeStreams[position].stream;
-        Model.insert(readStream, {}, function () {
-          console.log('file done');
-        });
-      }
-      currentStream.push(message.data.chunk);
-      socket.emit('chunk', {chunk: message.token});
-      //currentStream.write(message.data.chunk, function () {
-      //  socket.emit('chunk', {chunk: message.token});
-      ////currentStream.write(message.data.chunk, function () {
-      //  //console.log(isBuffedFilled);
-      //  //if (isBuffedFilled === true) {
-      //  //  return;
-      //  //} else {
-      //  //  console.log('socket drained', typeof currentStream);
-      //  //  currentStream.once('drain', function () {
-      //  //    socket.emit('chunk', {chunk: message.token});
-      //  //  });
-      //    //activeStreams[position].stream.write(message)
-      //});
-      
-      
-      /*  
-        activeStreams[position].stream.on('drain', function () {
-          console.log('drained')
-          activeStreams[position].stream.write(message.data.chunk);
-            socket.emit('chunk', {chunk: message.token});
-
-        });
-      */
-      ///queue.push({stream: activeStreams[position].stream, chunk: message.data.chunk}, function () {
-        //socket.emit('chunk', {chunk: message.token});
-        //console.log('processed chunk')
-      ///});
-      /*
-      activeStreams[position].stream.once('drain', function () {
-        activeStreams[position].stream.write(message.data.chunk, function () {
-          socket.emit('chunk', {chunk: message.token});
-        });
-      
-      });
-      */
-      //queue.push({token: message.token, chunk: message.data.chunk});
-
-    }
+    currentStream.push(message.data.chunk);
   }
+ 
  return {
     begin: begin,
     end: end,

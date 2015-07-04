@@ -35,16 +35,19 @@ angular.module('MEANcraftApp.overview')
 
     $scope.submit = function (file) {
       if (file) {
-        var token = btoa(file.size) + '-' + btoa(file.name) + '-' + btoa(file.lastModified);
-        $scope.parseFile(
-          function (data, next) {
-            UploadSocket.emit('chunk', {data: data, token: token}); 
-            UploadSocket.once('chunk', function (response) {
-              next();
-            });
-        }, function () {
-          console.log('uploadCallback');
-          UploadSocket.emit('end', {token: token});
+        //var token = btoa(file.size) + '-' + btoa(file.name) + '-' + btoa(file.lastModified) + '-' + btoa(Date.now());
+        UploadSocket.emit('begin', {metadata: {name: 'prueba', type: 'map'}});
+        UploadSocket.once('begin', function (message) {
+          $scope.parseFile(
+            function (data, next) {
+              UploadSocket.emit('chunk', {data: data, token: token}); 
+              UploadSocket.once('chunk', function (response) {
+                next();
+              });
+          }, function () {
+            console.log('uploadCallback');
+            UploadSocket.emit('end', {token: token});
+          });
         });
       }
     };

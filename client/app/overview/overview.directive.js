@@ -7,7 +7,6 @@ angular.module('MEANcraftApp.overview')
 			link: function (scope, element, attrs) {
 				element.bind('change', function (changeEvent) {
 					scope.file = element[0].files[0];
-					
 					scope.parseFile = function (chunkCallback, uploadCallback) {
 						var fileSize = scope.file.size;
 						var chunkSize = parseInt(scope.chunkSize);

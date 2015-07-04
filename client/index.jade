@@ -2,6 +2,8 @@ doctype html
 html(ng-app="MEANcraftApp")
   head
     title MEANcraft
+    link(rel="stylesheet" href="components/skeleton/skeleton.css")
+    link(rel="stylesheet" href="components/skeleton/normalize.css")  
     <!--########################## ANGULAR CORE ###########################-->
     script(defer src="bower_components/angular/angular.js")
     script(defer src="bower_components/angular-route/angular-route.min.js")
@@ -33,11 +35,11 @@ html(ng-app="MEANcraftApp")
     <!--###################################################################-->
     
     <!--######################### ANGULAR EXTRAS ##########################-->
-    script(defer src="bower_components/angular-strap/dist/angular-strap.min.js")
-    script(defer src="bower_components/angular-strap/dist/angular-strap.tpl.min.js")
+    //script(defer src="bower_components/angular-strap/dist/angular-strap.min.js")
+    //script(defer src="bower_components/angular-strap/dist/angular-strap.tpl.min.js")
     script(defer src="/socket.io/socket.io.js")
     //script(defer src="bower_components/angular-socket-io/socket.js")
     script(defer src="bower_components/angular-socket-io/socket.min.js")
-    script(defer src="bower_components/ng-flow/dist/ng-flow-standalone.js")
+    //script(defer src="bower_components/ng-flow/dist/ng-flow-standalone.js")
     <!--###################################################################-->
   body(ng-view)

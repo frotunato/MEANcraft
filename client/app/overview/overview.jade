@@ -5,14 +5,14 @@ h4 Overview
 
 button(ng-click="server.start()") Start!!
 button(ng-click="server.stop()") Stop!!
-select(ng-model="server.config.executable" ng-options="executable as executable.version group by executable.type for executable in data.executables")
-  option(value="") Select a JAR
+//select(ng-model="server.config.executable" ng-options="executable as executable.version group by executable.type for executable in data.executables")
+//  option(value="") Select a JAR
 
 {{server.current.status}}
 
 input(ng-model="current.msg")
 button(ng-click="current.sendMsg()") Send
-button(ng-click="server.create()") Create map
+//button(ng-click="server.create()") Create map
 button(ng-click="server.backup()") Backup map
 button(ng-click="list()") A
 h4 Upload file
@@ -44,4 +44,4 @@ select(ng-model="chunkSize")
 button(ng-click="doPing()") Calculate ping     
 {{' ' + ping.value + ' ms'}}
 {{'(' + ping.status + ')'}}
-h4 Upload progress {{offset/1000000 | number:0}} MB /{{file.size/1000000 | number:0}} MB ({{100*offset/file.size | number:0}} %)
+h5 Upload progress {{offset/1000000 | number:0}} MB /{{file.size/1000000 | number:0}} MB ({{100*offset/file.size | number:0}} %)

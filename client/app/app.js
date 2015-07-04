@@ -1,4 +1,4 @@
-angular.module('MEANcraftApp', ['ngRoute', 'ngResource', 'MEANcraftApp.login', 'MEANcraftApp.overview', 'btford.socket-io',/*'socket-io', */ 'flow'])
+angular.module('MEANcraftApp', ['ngRoute', 'ngResource', 'MEANcraftApp.login', 'MEANcraftApp.overview', 'btford.socket-io'/*,'socket-io',  'flow'*/])
 
   .config(function ($httpProvider, $routeProvider) {
     $httpProvider.interceptors.push('TokenInterceptor');
