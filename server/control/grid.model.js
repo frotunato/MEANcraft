@@ -69,22 +69,21 @@ function saveServerToDB (callback) {
   });
 }
 
-
 function appendBackup (readStream, data, cb) {
   insert(readStream, data, function (file) {
     var parent_id = new ObjectId("556cde1c0d4d075417619710");
     var child_id = file._id;
     gridfs.files.update({'_id': parent_id}, {"$push": {'metadata.childs_ids': {"_id": child_id}}}, function (err) {
       //console.log(doc)
-      console.log(err)
-      cb()
-    })
+      console.log(err);
+      cb();
+    });
     //gridfs.files.update({"_id": parent_id}, {"$push": {'metadata.childs_ids': {"_id": child_id}}}, function (l) {
     
       //cb();
      // console.log('done! parent', data.metadata.parent_id, 'children', file._id);
     //})
-  })
+  });
 }
 
 
@@ -105,12 +104,12 @@ function getMapsAndBackups (callback) {
         } else {
           docs.push(doc);
         }
-      })
+      });
     }
   ], function (err) {
     callback(err, docs);
-  })
-};
+  });
+}
 
 gridSchema.statics.insert = insert;
 gridSchema.statics.saveServerToDB = saveServerToDB;

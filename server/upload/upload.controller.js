@@ -1,7 +1,7 @@
 var fs = require('fs');
 var async = require('async');
 var Model = require('../control/grid.model');
-
+var Stream = require('stream');
 var activeStreams = [];
 
 function deepIndexOf (array, attr, value) {
@@ -24,9 +24,11 @@ module.exports = function (app, uploadNsp) {
   function end (message) {
     console.log('UploadSocket [END]');
     var position = deepIndexOf(activeStreams, 'token', message.token);
-    activeStreams[position].stream.end(function () {
-      activeStreams.splice(position, 1);
-    });
+    activeStreams[position].stream.push(null);
+    activeStreams.splice(position, 1);
+    ///activeStreams[position].stream.end(function () {
+    ///  activeStreams.splice(position, 1);
+    ///});
   }
 
   function ping () {
@@ -49,24 +51,32 @@ module.exports = function (app, uploadNsp) {
 
       if (position === -1) {
         console.log(message.token);
-        var writeStream = fs.createWriteStream('./chunkStream', {flags: 'a', encoding: null, mode: 0666});
-        activeStreams.push({token: message.token, stream: writeStream});
+        var readStream = new Stream.Readable();
+        readStream._read = function noop () {};
+        activeStreams.push({token: message.token, stream: readStream});
+        //var writeStream = fs.createWriteStream('./chunkStream', {flags: 'a', encoding: null, mode: 0666});
+        //activeStreams.push({token: message.token, stream: writeStream});
         position = deepIndexOf(activeStreams, 'token', message.token);
         currentStream = activeStreams[position].stream;
+        Model.insert(readStream, {}, function () {
+          console.log('file done');
+        });
       }
-      currentStream.write(message.data.chunk, function () {
-        socket.emit('chunk', {chunk: message.token});
+      currentStream.push(message.data.chunk);
+      socket.emit('chunk', {chunk: message.token});
       //currentStream.write(message.data.chunk, function () {
-        //console.log(isBuffedFilled);
-        //if (isBuffedFilled === true) {
-        //  return;
-        //} else {
-        //  console.log('socket drained', typeof currentStream);
-        //  currentStream.once('drain', function () {
-        //    socket.emit('chunk', {chunk: message.token});
-        //  });
-          //activeStreams[position].stream.write(message)
-      });
+      //  socket.emit('chunk', {chunk: message.token});
+      ////currentStream.write(message.data.chunk, function () {
+      //  //console.log(isBuffedFilled);
+      //  //if (isBuffedFilled === true) {
+      //  //  return;
+      //  //} else {
+      //  //  console.log('socket drained', typeof currentStream);
+      //  //  currentStream.once('drain', function () {
+      //  //    socket.emit('chunk', {chunk: message.token});
+      //  //  });
+      //    //activeStreams[position].stream.write(message)
+      //});
       
       
       /*  
