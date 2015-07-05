@@ -78,10 +78,11 @@ module.exports = function (app, uploadNsp) {
     currentStream.push(message.data.chunk);
   }
  
- return {
+  return {
     begin: begin,
     end: end,
     chunk: chunk,
     ping: ping
   };
+
 };

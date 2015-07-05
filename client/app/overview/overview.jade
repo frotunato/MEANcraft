@@ -15,15 +15,17 @@ button(ng-click="current.sendMsg()") Send
 //button(ng-click="server.create()") Create map
 button(ng-click="server.backup()") Backup map
 button(ng-click="list()") A
-h4 Upload file
-  div(id="uploadBox")
-    span(id="uploadArea")
-      label(for="fileBox") Choose a file:
-        input(fileRead type="file" id="fileBox")
-      label(for="nameBox") Name:
-        input(type="text" id="nameBox")
-      button(type="button" ng-click="submit(file)" id="uploadButton") Upload
-h4 Chunk size selector:
+
+h5 Upload file
+div(id="uploadBox" ng-controller="uploadServerCtrl")
+  span(id="uploadArea")
+    label(for="fileBox") Choose a file:
+      input(fileRead type="file" id="fileBox")
+    label(for="nameBox") Name:
+      input(type="text" id="nameBox" ng-bind="file")
+    button(type="button" ng-click="submit(file)" id="uploadButton") Upload
+
+h5 Chunk size selector:
 select(ng-model="chunkSize")
   option(selected value="4") 4 bytes
   option(selected value="8") 8 bytes

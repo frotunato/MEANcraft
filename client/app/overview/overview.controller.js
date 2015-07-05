@@ -1,15 +1,13 @@
 angular.module('MEANcraftApp.overview')
 
-  .controller('overviewCtrl', function ($scope, ServerSocket, UploadSocket, initialData, Executable) {
-    console.log(initialData, ServerSocket);
+  .controller('overviewCtrl', function ($scope, ServerSocket, UploadSocket, Executable) {
   
     $scope.data = {
-      executables: initialData.executables,
       maps: null
     };
+    
     $scope.chunkSize = 4;
     $scope.ping = {status: 'Ready', value: '?'};
-    $scope.upl = {};
     $scope.config = {};
     $scope.current = {
       status: 'Unknown',
@@ -29,26 +27,6 @@ angular.module('MEANcraftApp.overview')
         UploadSocket.once('ping', function () {
           $scope.ping.value = Date.now() - alphaTime;
           $scope.ping.status = 'Ready';
-        });
-      }
-    };
-
-    $scope.submit = function (file) {
-      if (file) {
-        //var token = btoa(file.size) + '-' + btoa(file.name) + '-' + btoa(file.lastModified) + '-' + btoa(Date.now());
-        UploadSocket.emit('begin', {metadata: {name: 'prueba', type: 'map'}});
-        UploadSocket.once('begin', function (message) {
-          console.log(message);
-          $scope.parseFile(
-            function (data, next) {
-              UploadSocket.emit('chunk', {data: data, token: message.token}); 
-              UploadSocket.once('chunk', function (response) {
-                next();
-              });
-          }, function () {
-            console.log('uploadCallback');
-            UploadSocket.emit('end', {token: message.token});
-          });
         });
       }
     };
@@ -119,5 +97,46 @@ angular.module('MEANcraftApp.overview')
     
     $scope.drop = function () {
       ServerSocket.emit('server', {action: "drop"});
+    };
+  
+  })
+
+  .controller('overviewServerCtrl', function ($scope, ServerSocket)  {
+    $scope.server = {
+      status: 'Unknown',
+      start: function () {
+        ServerSocket.emit('start');
+      },
+      stop: function () {
+        ServerSocket.emit('stop');
+      },
+      chat: function () {
+        ServerSocket.emit('chat');
+      }
+    };
+  })
+
+  .controller('uploadServerCtrl', function ($scope, UploadSocket) {
+    $scope.upload = {
+      currents: [],
+      start: function (file) {
+        if (!file) return;
+        UploadSocket.emit('begin', {metadata: {name: 'prueba', type: 'map'}});
+        UploadSocket.once('begin', function (message) {
+          $scope.parseFile(
+            function (data, next) {
+              UploadSocket.emit('chunk', {data: data, token: message.token}); 
+              UploadSocket.once('chunk', function (response) {
+                next();
+              });
+          }, function () {
+            console.log('uploadCallback');
+            UploadSocket.emit('end', {token: message.token});
+          });
+        });
+      },
+      cancel: function () {
+        
+      }
     };
   });
