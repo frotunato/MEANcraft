@@ -3,21 +3,22 @@ angular.module('MEANcraftApp.overview')
     return {
       restrict: 'A',
       replace: false,
-      scope: '=',
       link: function (scope, element, attrs) {
         element.bind('change', function (changeEvent) {
-          scope.file = element[0].files[0];
+          scope.upload.file.data = element[0].files[0];
+          scope.upload.file.metadata.name = element[0].files[0].name.replace(/(\.[^/.]+)+$/, "");
+          scope.$apply();
           scope.parseFile = function (chunkCallback, uploadCallback) {
-            var fileSize = scope.file.size;
-            var chunkSize = parseInt(scope.chunkSize);
-            var offset = 0;
-            scope.offset = Math.round(offset);
+          	var fileData = scope.upload.file.data;
+            var fileSize = fileData.size;
+            var chunkSize = parseInt(scope.upload.chunkSize);
+            var offset = parseInt(scope.upload.file.offset);
             var alphaTime = Date.now();
             var r = new FileReader();
             var blob = {};
             
             var block = function () {
-              blob = scope.file.slice(offset, chunkSize + offset);
+              blob = fileData.slice(offset, chunkSize + offset);
               r.readAsArrayBuffer(blob);
               r.onload = foo;
             };
@@ -25,9 +26,9 @@ angular.module('MEANcraftApp.overview')
             var foo = function (event) {
               console.log(offset);
               if (offset > fileSize) {
-                scope.offset = offset - scope.file.size;
+                scope.offset = offset - fileData.size;
                 uploadCallback();
-                window.alert('Delta time: '.concat(parseInt(Date.now() - alphaTime)).concat(' ms (Chunk size: ').concat(parseInt(scope.chunkSize)).concat(' bytes). ').concat('Upload speed: ').concat(Math.round((fileSize/1000)/((Date.now()-alphaTime)/1000))).concat(' KB/s. ').concat('File size ' + Math.round(fileSize/1000000) + ' MB'));
+                window.alert('Delta time: '.concat(parseInt(Date.now() - alphaTime)).concat(' ms (Chunk size: ').concat(parseInt(scope.upload.chunkSize)).concat(' bytes). ').concat('Upload speed: ').concat(Math.round((fileSize/1000)/((Date.now()-alphaTime)/1000))).concat(' KB/s. ').concat('File size ' + Math.round(fileSize/1000000) + ' MB'));
                 return;
               }
 
@@ -36,9 +37,7 @@ angular.module('MEANcraftApp.overview')
                 console.log(offset);
                 scope.offset = parseFloat(offset);
                 chunkCallback({
-                  chunk: event.target.result,
-                  fileSize: fileSize,
-                  chunkSize: chunkSize
+                  chunk: event.target.result
                 }, block);
               } else {
                 console.log('Read error: ', event.target.error);

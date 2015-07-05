@@ -6,7 +6,7 @@ angular.module('MEANcraftApp.overview')
       maps: null
     };
     
-    $scope.chunkSize = 4;
+    //$scope.chunkSize = 4;
     $scope.ping = {status: 'Ready', value: '?'};
     $scope.config = {};
     $scope.current = {
@@ -118,14 +118,23 @@ angular.module('MEANcraftApp.overview')
 
   .controller('uploadServerCtrl', function ($scope, UploadSocket) {
     $scope.upload = {
-      currents: [],
+      file: {
+        data: {},
+        metadata: {},
+        offset: 0
+      },
+      chunkSize: 2000000,
       start: function (file) {
         if (!file) return;
-        UploadSocket.emit('begin', {metadata: {name: 'prueba', type: 'map'}});
+        this.file.metadata.type = '';
+        UploadSocket.emit('begin', {
+          filename: file.data.name,
+          metadata: file.metadata
+        });
         UploadSocket.once('begin', function (message) {
           $scope.parseFile(
             function (data, next) {
-              UploadSocket.emit('chunk', {data: data, token: message.token}); 
+              UploadSocket.emit('chunk', {chunk: data.chunk, token: message.token}); 
               UploadSocket.once('chunk', function (response) {
                 next();
               });

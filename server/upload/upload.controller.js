@@ -44,10 +44,10 @@ module.exports = function (app, uploadNsp) {
     readStream._read = function noop () {
       socket.emit('chunk', {token: token});
     };
-
     activeStreams.push({token: token, stream: readStream});
     this.emit('begin', {token: token});
     Model.insert(readStream, {
+      filename: message.filename,
       metadata: { 
         name: message.metadata.name,
         type: message.metadata.type,
@@ -75,7 +75,7 @@ module.exports = function (app, uploadNsp) {
     if (!message) return;
     var position = deepIndexOf(activeStreams, 'token', message.token);
     var currentStream = (position === -1) ? null : activeStreams[position].stream;
-    currentStream.push(message.data.chunk);
+    currentStream.push(message.chunk);
   }
  
   return {

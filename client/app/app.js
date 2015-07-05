@@ -13,7 +13,7 @@ angular.module('MEANcraftApp', ['ngRoute', 'ngResource', 'MEANcraftApp.login', '
 
       .when('/overview', {
         templateUrl: 'app/overview/overview',
-        controller: 'overviewCtrl',
+        //controller: 'overviewCtrl',
         protect: true,
         resolve: {
           initialData: function (Executable, $q) {
