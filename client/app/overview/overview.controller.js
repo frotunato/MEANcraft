@@ -48,7 +48,7 @@ angular.module('MEANcraftApp.overview')
       console.log(data);
     });
 
-    ServerSocket.emit('list');
+    //ServerSocket.emit('list');
 
     $scope.list = function () {
       ServerSocket.emit('list');
@@ -57,12 +57,12 @@ angular.module('MEANcraftApp.overview')
         $scope.data.maps = data;
       });
     };
-
+/*
     ServerSocket.on('list', function (data) {
       console.log(data);
       $scope.data.maps = data;
     });
-
+*/
     ServerSocket.on('backup', function (data) {
       console.log(data);
     });
@@ -102,10 +102,27 @@ angular.module('MEANcraftApp.overview')
   })
 
   .controller('overviewServerCtrl', function ($scope, ServerSocket)  {
+    ServerSocket.emit('list');
+    ServerSocket.on('list', function (message) {
+      if (!message) return;
+      $scope.server.list = message;
+      console.log(message);
+    });
+
     $scope.server = {
+      mapList: [],
+      exec: {
+        list: [],
+        selected: {}
+      },
+      map: {
+        list: [],
+        selected: {}
+      },
+      options: {},
       status: 'Unknown',
       start: function () {
-        ServerSocket.emit('start');
+        ServerSocket.emit('start', {_id: ''});
       },
       stop: function () {
         ServerSocket.emit('stop');

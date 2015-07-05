@@ -2,13 +2,26 @@ h4 Overview
 //button(ng-click="create()") Create!!
 //button(ng-click="drop()") Drop It!!
 //input(type="file" name="file" onchange="angular.element(this).scope().uploadFile(this.files)")
+//div(class="container")
+//  div(class="ten columns") ten
+//    div asdsadsadasdasdsadsadasdasdsadsadasdasdsadsadasdasdsadsadasd
+//
+//  div(class="two columns") two
 
 button(ng-click="server.start()") Start!!
 button(ng-click="server.stop()") Stop!!
 //select(ng-model="server.config.executable" ng-options="executable as executable.version group by executable.type for executable in data.executables")
 //  option(value="") Select a JAR
 
-{{server.current.status}}
+div(id="controlBox" ng-controller="overviewServerCtrl as serverCtrl")
+  select(ng-model="serverCtrl.server.map.selected" ng-options="map as map.metadata.name for map in serverCtrl.server.map.list track by map._id")
+    option(value="") Select a map
+  select(ng-model="serverCtrl.server.exec.selected" ng-options="exec as exec.metadata.name for exec in serverCtrl.server.exec.list track by exec._id")
+    option(value="") Select an executable
+  {{server.exec}}
+  {{server.map}}
+
+
 
 input(ng-model="current.msg")
 button(ng-click="current.sendMsg()") Send
@@ -17,7 +30,7 @@ button(ng-click="server.backup()") Backup map
 button(ng-click="list()") A
 
 h5 Upload file
-div(id="uploadBox" ng-controller="uploadServerCtrl")
+div(id="uploadBox" ng-controller="uploadServerCtrl as uploadCtrl")
   span(id="uploadArea")
     label(for="fileBox") Choose a file:
       input(fileRead type="file" id="fileBox")
@@ -27,19 +40,19 @@ div(id="uploadBox" ng-controller="uploadServerCtrl")
 
   h5 Chunk size selector:
   select(ng-model="upload.chunkSize")
-    option(selected value="4") 4 bytes
-    option(selected value="8") 8 bytes
-    option(selected value="16") 16 bytes
-    option(selected value="32") 32 bytes
-    option(selected value="64") 64 bytes
-    option(selected value="1024") 1024 bytes
-    option(selected value="5024") 5024 bytes
-    option(selected value="9024") 9024 bytes
-    option(selected value="500000") 500KB
-    option(selected value="1000000") 1 MB
+    option(value="4") 4 bytes
+    option(value="8") 8 bytes
+    option(value="16") 16 bytes
+    option(value="32") 32 bytes
+    option(value="64") 64 bytes
+    option(value="1024") 1024 bytes
+    option(value="5024") 5024 bytes
+    option(value="9024") 9024 bytes
+    option(value="500000") 500 KB
+    option(value="1000000") 1 MB
     option(selected value="2000000") 2 MB
-    option(selected value="5000000") 5 MB
-    option(selected value="20000000") 20 MB
+    option(value="5000000") 5 MB
+    option(value="20000000") 20 MB
 
 //ul
 //  li(ng-repeat="map in data.maps") {{map.metadata}}
