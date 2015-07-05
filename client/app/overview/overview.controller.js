@@ -48,8 +48,6 @@ angular.module('MEANcraftApp.overview')
       console.log(data);
     });
 
-    //ServerSocket.emit('list');
-
     $scope.list = function () {
       ServerSocket.emit('list');
       ServerSocket.on('list', function (data) {
@@ -71,7 +69,7 @@ angular.module('MEANcraftApp.overview')
       console.log('maps', data.maps);
     });
 
-    ServerSocket.emit('status');
+    //ServerSocket.emit('status');
 
     $scope.server = {
       status: 'Unknown',
@@ -102,67 +100,67 @@ angular.module('MEANcraftApp.overview')
   })
 
   .controller('overviewServerCtrl', function ($scope, ServerSocket)  {
+    var self = this;
+    
     ServerSocket.emit('list');
+
     ServerSocket.on('list', function (message) {
       if (!message) return;
-      $scope.server.list = message;
-      console.log(message);
+      self.map.list = message;
+      //console.log(message);
     });
-
-    $scope.server = {
-      mapList: [],
-      exec: {
-        list: [],
-        selected: {}
-      },
-      map: {
-        list: [],
-        selected: {}
-      },
-      options: {},
-      status: 'Unknown',
-      start: function () {
-        ServerSocket.emit('start', {_id: ''});
-      },
-      stop: function () {
-        ServerSocket.emit('stop');
-      },
-      chat: function () {
-        ServerSocket.emit('chat');
-      }
+    
+    this.exec = {
+      list: [],
+      selected: {_id: null}
     };
+
+    this.map = {
+      list: [],
+      selected: {_id: null}
+    };
+
+    this.options = {};
+
+    this.start = function () {
+      if (self.exec.selected._id && self.map.selected._id)
+      ServerSocket.emit('start', {
+        exec: self.exec.selected._id,
+        map: self.map.selected._id
+      });
+    };
+
   })
 
   .controller('uploadServerCtrl', function ($scope, UploadSocket) {
-    $scope.upload = {
-      file: {
-        data: {},
-        metadata: {},
-        offset: 0
-      },
-      chunkSize: 2000000,
-      start: function (file) {
-        if (!file) return;
-        this.file.metadata.type = '';
-        UploadSocket.emit('begin', {
-          filename: file.data.name,
-          metadata: file.metadata
-        });
-        UploadSocket.once('begin', function (message) {
-          $scope.parseFile(
-            function (data, next) {
-              UploadSocket.emit('chunk', {chunk: data.chunk, token: message.token}); 
-              UploadSocket.once('chunk', function (response) {
-                next();
-              });
-          }, function () {
-            console.log('uploadCallback');
-            UploadSocket.emit('end', {token: message.token});
-          });
-        });
-      },
-      cancel: function () {
-        
-      }
+    var self = this;
+    
+    this.file = {
+      data: {},
+      metadata: {},
+      offset: 0
     };
+    
+    this.start = function (file, type) {
+      if (!file) return;
+      self.file.metadata.type = type;
+      UploadSocket.emit('begin', {
+        filename: file.data.name,
+        metadata: file.metadata,
+      });
+
+      UploadSocket.once('begin', function (message) {
+        self.parseFile(
+          function (data, next) {
+            UploadSocket.emit('chunk', {chunk: data.chunk, token: message.token}); 
+            UploadSocket.once('chunk', function (response) {
+              next();
+            });
+        }, function () {
+          console.log('uploadCallback');
+          UploadSocket.emit('end', {token: message.token});
+        });
+      });
+    };
+
   });

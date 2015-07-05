@@ -31,6 +31,8 @@ module.exports = function (app, serverNsp) {
   });
 
   function start (message) {
+  	if (!message) return;
+  	console.log(message);
     /*
     if (isUp === false) {
       process.send({

@@ -8,7 +8,8 @@ angular.module('MEANcraftApp.overview')
           scope.upload.file.data = element[0].files[0];
           scope.upload.file.metadata.name = element[0].files[0].name.replace(/(\.[^/.]+)+$/, "");
           scope.$apply();
-          scope.parseFile = function (chunkCallback, uploadCallback) {
+          scope.upload.parseFile = function (chunkCallback, uploadCallback) {
+          	console.log('inner', scope);
           	var fileData = scope.upload.file.data;
             var fileSize = fileData.size;
             var chunkSize = parseInt(scope.upload.chunkSize);

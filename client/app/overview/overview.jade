@@ -8,35 +8,22 @@ h4 Overview
 //
 //  div(class="two columns") two
 
-button(ng-click="server.start()") Start!!
-button(ng-click="server.stop()") Stop!!
-//select(ng-model="server.config.executable" ng-options="executable as executable.version group by executable.type for executable in data.executables")
-//  option(value="") Select a JAR
-
-div(id="controlBox" ng-controller="overviewServerCtrl as serverCtrl")
-  select(ng-model="serverCtrl.server.map.selected" ng-options="map as map.metadata.name for map in serverCtrl.server.map.list track by map._id")
+div(id="controlBox" ng-controller="overviewServerCtrl as server")
+  button(ng-click="server.start()") Start
+  button(ng-click="server.stop()") Stop
+  select(ng-model="server.map.selected" ng-options="map as map.metadata.name for map in server.map.list track by map._id")
     option(value="") Select a map
-  select(ng-model="serverCtrl.server.exec.selected" ng-options="exec as exec.metadata.name for exec in serverCtrl.server.exec.list track by exec._id")
+  select(ng-model="server.exec.selected" ng-options="exec as exec.metadata.name for exec in server.exec.list track by exec._id")
     option(value="") Select an executable
-  {{server.exec}}
-  {{server.map}}
-
-
-
-input(ng-model="current.msg")
-button(ng-click="current.sendMsg()") Send
-//button(ng-click="server.create()") Create map
-button(ng-click="server.backup()") Backup map
-button(ng-click="list()") A
 
 h5 Upload file
-div(id="uploadBox" ng-controller="uploadServerCtrl as uploadCtrl")
+div(id="uploadBox" ng-controller="uploadServerCtrl as upload")
   span(id="uploadArea")
     label(for="fileBox") Choose a file:
       input(fileRead type="file" id="fileBox")
     label(for="nameBox") Name:
       input(type="text" id="nameBox" ng-model="upload.file.metadata.name")
-    button(type="button" ng-click="upload.start(upload.file)" id="uploadButton") Upload
+    button(type="button" ng-click="upload.start(upload.file, 'exec')" id="uploadButton") Upload
 
   h5 Chunk size selector:
   select(ng-model="upload.chunkSize")

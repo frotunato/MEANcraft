@@ -6,7 +6,6 @@ module.exports = function (app, serverNsp) {
 		socket.on('stop', controller.stop.bind(socket));
 		socket.on('status', controller.status.bind(socket));
 		socket.on('list', controller.list.bind(socket));
-		socket.on('upload', controller.upload.bind(socket));
 	}
 
 	return {
