@@ -134,33 +134,56 @@ angular.module('MEANcraftApp.overview')
 
   .controller('uploadServerCtrl', function ($scope, UploadSocket) {
     var self = this;
-    
-    this.file = {
-      data: {},
-      metadata: {},
-      offset: 0
+
+    this.exec = {
+      data: null,
+      metadata: {
+        type: 'exec'
+      }
+    };
+
+    this.map = {
+      data: null,
+      metadata: {
+        type: 'map'
+      }
     };
     
-    this.start = function (file, type) {
-      if (!file) return;
-      self.file.metadata.type = type;
-      UploadSocket.emit('begin', {
-        filename: file.data.name,
-        metadata: file.metadata,
-      });
-
-      UploadSocket.once('begin', function (message) {
-        self.parseFile(
-          function (data, next) {
-            UploadSocket.emit('chunk', {chunk: data.chunk, token: message.token}); 
-            UploadSocket.once('chunk', function (response) {
-              next();
-            });
-        }, function () {
-          console.log('uploadCallback');
-          UploadSocket.emit('end', {token: message.token});
+    this.start = function () {
+      var queue = [];
+      var exec = (self.exec.data !== null) ? queue.push(self.exec) : undefined;
+      var map = (self.map.data !== null) ? queue.push(self.map) : undefined;
+      if (queue.length === 0) return;
+      console.log('Queue', JSON.stringify(queue));
+      
+      function processElement () {
+        if (queue.length === 0) return;
+        var file = queue[0];  
+        
+        UploadSocket.emit('begin', {
+          filename: file.data.name,
+          metadata: file.metadata,
         });
-      });
+
+        UploadSocket.once('begin', function (message) {
+          self.parseFile(
+            function (data, next) {
+              UploadSocket.emit('chunk', {chunk: data.chunk, token: message.token}); 
+              UploadSocket.once('chunk', function (response) {
+                next();
+              });
+          }, function () {
+            console.log('uploadCallback');
+            UploadSocket.emit('end', {token: message.token});
+            queue.splice(0, 1);
+            console.log(queue.length)
+            processElement();
+          });
+        });
+      }
+      
+      processElement();
+
     };
 
   });

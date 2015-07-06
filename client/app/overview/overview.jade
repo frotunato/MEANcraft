@@ -8,7 +8,7 @@ h4 Overview
 //
 //  div(class="two columns") two
 
-div(id="controlBox" ng-controller="overviewServerCtrl as server")
+div(id="controlBox" ng-cont roller="overviewServerCtrl as server")
   button(ng-click="server.start()") Start
   button(ng-click="server.stop()") Stop
   select(ng-model="server.map.selected" ng-options="map as map.metadata.name for map in server.map.list track by map._id")
@@ -19,11 +19,20 @@ div(id="controlBox" ng-controller="overviewServerCtrl as server")
 h5 Upload file
 div(id="uploadBox" ng-controller="uploadServerCtrl as upload")
   span(id="uploadArea")
-    label(for="fileBox") Choose a file:
-      input(fileRead type="file" id="fileBox")
-    label(for="nameBox") Name:
-      input(type="text" id="nameBox" ng-model="upload.file.metadata.name")
-    button(type="button" ng-click="upload.start(upload.file, 'exec')" id="uploadButton") Upload
+    label(for="execFile") Choose an executable:
+      input(fileRead="upload.exec" type="file" id="execFile")
+    label(for="execName") Name:
+      input(type="text" id="execName" ng-model="upload.exec.metadata.name")
+      {{upload.exec.offset/1000000 | number:0}} MB / {{upload.exec.data.size/1000000 | number:0}} MB ({{100*upload.exec.offset/upload.exec.data.size | number:0}} %)
+    //button(type="button" ng-click="upload.start(upload.file, 'exec')" id="uploadButton") Upload
+
+    label(for="mapFile") Choose a map:
+      input(fileRead="upload.map" type="file" id="mapFile")
+    label(for="mapName") Name:
+      input(type="text" id="mapName" ng-model="upload.map.metadata.name")
+      {{upload.map.offset/1000000 | number:0}} MB / {{upload.map.data.size/1000000 | number:0}} MB ({{100*upload.map.offset/upload.map.data.size | number:0}} %)
+    //button(type="button" ng-click="upload.start(upload.file, 'exec')" id="uploadButton") Upload
+  button(type="button" ng-click="upload.start()") Upload
 
   h5 Chunk size selector:
   select(ng-model="upload.chunkSize")
@@ -46,4 +55,5 @@ div(id="uploadBox" ng-controller="uploadServerCtrl as upload")
 button(ng-click="doPing()") Calculate ping     
 {{' ' + ping.value + ' ms'}}
 {{'(' + ping.status + ')'}}
+
 h5 Upload progress {{offset/1000000 | number:0}} MB /{{file.size/1000000 | number:0}} MB ({{100*offset/file.size | number:0}} %)
