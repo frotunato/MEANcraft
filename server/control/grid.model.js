@@ -73,7 +73,7 @@ function appendBackup (readStream, data, cb) {
   insert(readStream, data, function (file) {
     var parent_id = new ObjectId("556cde1c0d4d075417619710");
     var child_id = file._id;
-    gridfs.files.update({'_id': parent_id}, {"$push": {'metadata.childs_ids': {"_id": child_id}}}, function (err) {
+    gridfs.files.update({_id: parent_id}, {"$push": {'metadata.childs_ids': {"_id": child_id}}}, function (err) {
       //console.log(doc)
       console.log(err);
       cb();
@@ -86,14 +86,23 @@ function appendBackup (readStream, data, cb) {
   });
 }
 
-
-gridSchema.statics.read = function (criteria, cb) {
-  return gridfs.createReadStream(criteria);
-};
+function streamFromId (id, cb) {
+  if (!id || typeof id !== 'string') {
+    cb('[streamFromId]: error, no id provided');
+    return;
+  }
+  var stream = gridfs.createReadStream({_id: id});
+  stream.once('error', function (err) {
+    cb('[streamFromId]: ' + err);
+    return;
+  });
+  console.log('read object', id);
+  cb(null, stream);
+}
 
 function getMapsAndBackups (callback) {
   var cursor = gridfs.files.find({'metadata.parent_id': null});
-  var docs = [];
+  var docs = {execs: [], maps: []};
   async.series([
     function (cb) {
       cursor.each(function (err, doc) {
@@ -102,7 +111,11 @@ function getMapsAndBackups (callback) {
         } else if (doc === null) {
           cb();
         } else {
-          docs.push(doc);
+          if (doc.type === 'exec') {
+            docs.execs.push(doc);
+          } else if (doc.type === 'map') {
+            docs.maps.push(doc);
+          }
         }
       });
     }
@@ -115,5 +128,6 @@ gridSchema.statics.insert = insert;
 gridSchema.statics.saveServerToDB = saveServerToDB;
 gridSchema.statics.appendBackup = appendBackup;
 gridSchema.statics.getMapsAndBackups = getMapsAndBackups;
+gridSchema.statics.streamFromId = streamFromId;
 
 module.exports = mongoose.model('Grid', gridSchema, "fs.files");

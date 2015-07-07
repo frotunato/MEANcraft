@@ -8,7 +8,7 @@ h4 Overview
 //
 //  div(class="two columns") two
 
-div(id="controlBox" ng-cont roller="overviewServerCtrl as server")
+div(id="controlBox" ng-controller="overviewServerCtrl as server")
   button(ng-click="server.start()") Start
   button(ng-click="server.stop()") Stop
   select(ng-model="server.map.selected" ng-options="map as map.metadata.name for map in server.map.list track by map._id")

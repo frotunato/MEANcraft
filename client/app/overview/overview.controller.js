@@ -123,7 +123,8 @@ angular.module('MEANcraftApp.overview')
     this.options = {};
 
     this.start = function () {
-      if (self.exec.selected._id && self.map.selected._id)
+      console.log(self.exec, self.map);
+      //if (!self.exec.selected._id || !self.map.selected._id) return;
       ServerSocket.emit('start', {
         exec: self.exec.selected._id,
         map: self.map.selected._id
@@ -176,7 +177,7 @@ angular.module('MEANcraftApp.overview')
             console.log('uploadCallback');
             UploadSocket.emit('end', {token: message.token});
             queue.splice(0, 1);
-            console.log(queue.length)
+            console.log(queue.length);
             processElement();
           });
         });

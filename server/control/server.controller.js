@@ -33,21 +33,33 @@ module.exports = function (app, serverNsp) {
   function start (message) {
   	if (!message) return;
   	console.log(message);
+  	Model.streamFromId(message.map, function (err, readStream) {
+  		if (err) {
+  			console.log(err);
+  			return;
+  		}
+  		var writeStream = fs.createWriteStream('asd.a');
+  		readStream.pipe(writeStream);
+  		writeStream.on('close', function () {
+  			console.log('started done');
+  		});
+  	});
+    
     /*
-    if (isUp === false) {
-      process.send({
-        command: 'start', 
-        config: {
-          procName: 'java', 
-          procArgs: ['-jar', 'minecraft_server.jar', 'nogui'], 
-          procOptions: {
-            cwd: './game'
-          }
-        }
-      });
-    } else {
-      this.emit('err', 'Server already running');
-    }
+    	if (isUp === false) {
+    	  process.send({
+    	    command: 'start', 
+    	    config: {
+    	      procName: 'java', 
+    	      procArgs: ['-jar', 'minecraft_server.jar', 'nogui'], 
+    	      procOptions: {
+    	        cwd: './game'
+    	      }
+    	    }
+    	  });
+    	} else {
+    	  this.emit('err', 'Server already running');
+    	}
   	*/
   }
 
