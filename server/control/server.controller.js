@@ -1,13 +1,7 @@
 var Model = require('./grid.model');
 var fs = require('fs');
 var async = require('async');
-var queue = async.queue(function (message, callback) {
-  var alphaTime = Date.now();
-  fs.appendFile('chunk.asd', message.chunk, function () {
-    console.log('Processed token', message.token, Date.now() - alphaTime, 'ms');
-    callback();
-  });
-}, 1);
+var util = require('./server.util.js');
 
 module.exports = function (app, serverNsp) {
   var isUp = false;
@@ -32,16 +26,20 @@ module.exports = function (app, serverNsp) {
 
   function start (message) {
   	if (!message) return;
+  	var socket = this;
   	console.log(message);
-  	Model.streamFromId(message.map, function (err, readStream) {
+  	Model.readStreamFromId(message.map, function (err, readStream) {
   		if (err) {
   			console.log(err);
+  			socket.emit('err', err);
   			return;
   		}
-  		var writeStream = fs.createWriteStream('asd.a');
+  		var writeStream = fs.createWriteStream('./temp/a');
   		readStream.pipe(writeStream);
   		writeStream.on('close', function () {
-  			console.log('started done');
+  			util.getFileType('./temp/a', function (err, type) {
+  				console.log(type, __dirname);
+  			});
   		});
   	});
     

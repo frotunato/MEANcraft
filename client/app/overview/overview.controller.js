@@ -104,9 +104,15 @@ angular.module('MEANcraftApp.overview')
     
     ServerSocket.emit('list');
 
+    ServerSocket.on('err', function (message) {
+      window.alert(message);
+    });
+
     ServerSocket.on('list', function (message) {
       if (!message) return;
-      self.map.list = message;
+      console.log(message);
+      self.map.list = message.maps;
+      self.exec.list = message.execs;
       //console.log(message);
     });
     
@@ -136,6 +142,10 @@ angular.module('MEANcraftApp.overview')
   .controller('uploadServerCtrl', function ($scope, UploadSocket) {
     var self = this;
 
+    UploadSocket.on('err', function (err) {
+      window.alert(err);
+    })
+
     this.exec = {
       data: null,
       metadata: {
@@ -161,9 +171,13 @@ angular.module('MEANcraftApp.overview')
         if (queue.length === 0) return;
         var file = queue[0];  
         
-        UploadSocket.emit('begin', {
-          filename: file.data.name,
-          metadata: file.metadata,
+        self.parseFileHeader(function (header) {
+          console.log(header);
+          UploadSocket.emit('begin', {
+            filename: file.data.name,
+            metadata: file.metadata,
+            header: header
+          });
         });
 
         UploadSocket.once('begin', function (message) {

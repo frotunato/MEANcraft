@@ -30,23 +30,44 @@ angular.module('MEANcraftApp.overview')
           console.log(targetFile);
           scope.$apply();
           
+
+          scope.upload.parseFileHeader = function (cb) {
+            var headerReader = new FileReader();
+            var blob = {};
+            var kick = function () {
+              blob = targetFile.data.slice(0, 262);
+              headerReader.readAsArrayBuffer(blob);
+              headerReader.onload = foo;
+            };
+
+            var foo = function (event) {
+              if (event.target.error === null) {
+                cb(event.target.result);
+              }
+            };
+            kick();
+          };
+
           scope.upload.parseFile = function (chunkCallback, uploadCallback) {
           	var fileData = targetFile.data;
             var fileSize = fileData.size;
             var chunkSize = 2000000; //parseInt(scope.upload.chunkSize);
             var offset = targetFile.offset;
             var alphaTime = Date.now();
-            var r = new FileReader();
-            var blob = {};
             
+            var fileReader = new FileReader();
+            //headerReader.onload = fileHeader;
+            
+            var blob = {};
             var block = function () {
               blob = fileData.slice(offset, chunkSize + offset);
-              r.readAsArrayBuffer(blob);
-              r.onload = foo;
+              fileReader.readAsArrayBuffer(blob);
+              fileReader.onload = foo;
             };
             
             var foo = function (event) {
               console.log(offset);
+              
               if (targetFile.offset > fileSize) {
                 targetFile.offset = targetFile.offset - fileData.size;
                 uploadCallback();

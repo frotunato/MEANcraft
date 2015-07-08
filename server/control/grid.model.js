@@ -7,6 +7,7 @@ var async = require('async');
 var util = require('./server.util');
 var rimraf = require('rimraf');
 var fs = require('fs');
+var tar = require('tar-fs');
 
 function insert (readStream, data, cb) {
   var writeStream = gridfs.createWriteStream(data);
@@ -86,14 +87,14 @@ function appendBackup (readStream, data, cb) {
   });
 }
 
-function streamFromId (id, cb) {
+function readStreamFromId (id, cb) {
   if (!id || typeof id !== 'string') {
-    cb('[streamFromId]: error, no id provided');
+    cb('[readStreamFromId]: error, no id provided');
     return;
   }
   var stream = gridfs.createReadStream({_id: id});
   stream.once('error', function (err) {
-    cb('[streamFromId]: ' + err);
+    cb('[readStreamFromId]: ' + err);
     return;
   });
   console.log('read object', id);
@@ -111,9 +112,9 @@ function getMapsAndBackups (callback) {
         } else if (doc === null) {
           cb();
         } else {
-          if (doc.type === 'exec') {
+          if (doc.metadata.type === 'exec') {
             docs.execs.push(doc);
-          } else if (doc.type === 'map') {
+          } else if (doc.metadata.type === 'map') {
             docs.maps.push(doc);
           }
         }
@@ -124,10 +125,43 @@ function getMapsAndBackups (callback) {
   });
 }
 
+function writeServerToDisk (mapId, execId, callback) {
+  async.parallel([
+    function (cb) {
+      readStreamFromId(mapId, function (err, readStream) {
+        if (err) {
+          return cb(err);
+        }
+        readStream.pipe(writeStream);
+        var writeStream = tar.extract('./temp');
+        writeStream.once('finish', function () {
+          cb(null);
+        });
+    });
+    },
+    function (cb) {
+      readStreamFromId(execId, function (err, readStream) {
+        if (err) {
+          return cb(err);
+        }
+        readStream.pipe(writeStream);  
+        var writeStream = tar.extract('./temp');
+        writeStream.once('finish', function () {
+          cb(null);
+        });
+      });
+    }
+  ], function (err, results) {
+    console.log('** [writeServerToDisk completed] **');
+    callback(err);
+  });
+}
+
 gridSchema.statics.insert = insert;
 gridSchema.statics.saveServerToDB = saveServerToDB;
 gridSchema.statics.appendBackup = appendBackup;
 gridSchema.statics.getMapsAndBackups = getMapsAndBackups;
-gridSchema.statics.streamFromId = streamFromId;
+gridSchema.statics.readStreamFromId = readStreamFromId;
+gridSchema.statics.writeServerToDisk = writeServerToDisk;
 
 module.exports = mongoose.model('Grid', gridSchema, "fs.files");
