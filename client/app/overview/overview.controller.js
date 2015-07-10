@@ -159,7 +159,11 @@ angular.module('MEANcraftApp.overview')
         type: 'map'
       }
     };
-    
+   
+    UploadSocket.on('progress', function (message) {
+      console.log(message);
+    });
+
     this.start = function () {
       var queue = [];
       var exec = (self.exec.data !== null) ? queue.push(self.exec) : undefined;
@@ -172,7 +176,6 @@ angular.module('MEANcraftApp.overview')
         var file = queue[0];  
         
         self.parseFileHeader(function (header) {
-          console.log(header);
           UploadSocket.emit('begin', {
             filename: file.data.name,
             metadata: file.metadata,

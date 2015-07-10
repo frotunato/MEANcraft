@@ -95,32 +95,39 @@ function _getReadStreamFromId (id, cb) {
   }
   gridfs.findOne({_id: id}, function (err, file) {
     var stream = gridfs.createReadStream({_id: id});
-    var metadata = file.metadata;
     stream.once('error', function (err) {
       cb('[readStreamFromId]: ' + err);
       return;
     });
-    cb(null, stream, metadata);
+    cb(null, stream, file);
   });
 }
 
-function extractFile (id, cb) {
-  _getReadStreamFromId(id, function (err, readStream, metadata) {
-    console.log(metadata);
-    var c = 0;
-    var gunzip = require('gunzip-maybe');
+function _extractFile (id, cb) {
+  _getReadStreamFromId(id, function (err, readStream, file) {
     var gzipStream = zlib.Unzip();
-    readStream.on('data', function () {
-      c++;
-      console.log(c);
-    });
-    //var writeStream = tar.extract('./temp/');
-    var writeStream = fs.createWriteStream('./temp/a2');
-    readStream.pipe(gunzip()).pipe(writeStream);
-    //readStream.pipe(writeStream);
-    writeStream.on('close', function () {
+    var writeStream = tar.extract('./temp/');
+    readStream.pipe(gzipStream).pipe(writeStream);
+    writeStream.once('finish', function () {
       cb();
     });
+  });
+}
+
+function deployServer (execId, mapId, callback) {
+  async.parallel([
+    function (cb) {
+      _extractFile(execId, function (err) {
+        cb();
+      });
+    },
+    function (cb) {
+      _extractFile(mapId, function (err) {
+        cb();
+      });
+    }
+  ], function () {
+    callback();
   });
 }
 
@@ -185,7 +192,7 @@ gridSchema.statics.insert = insert;
 gridSchema.statics.saveServerToDB = saveServerToDB;
 gridSchema.statics.appendBackup = appendBackup;
 gridSchema.statics.getMapsAndBackups = getMapsAndBackups;
-gridSchema.statics.extractFile = extractFile;
+gridSchema.statics.deployServer = deployServer;
 gridSchema.statics.writeServerToDisk = writeServerToDisk;
 
 module.exports = mongoose.model('Grid', gridSchema, "fs.files");

@@ -28,7 +28,7 @@ module.exports = function (app, serverNsp) {
   	if (!message) return;
   	var socket = this;
   	console.log(message);
-  	Model.extractFile(message.exec, function () {
+  	Model.deployServer(message.exec, message.map, function () {
   		console.log('EXTRACTED');
   	});
   	/*

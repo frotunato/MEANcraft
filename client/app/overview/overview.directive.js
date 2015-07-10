@@ -27,7 +27,7 @@ angular.module('MEANcraftApp.overview')
           targetFile.data = element[0].files[0];
           targetFile.offset = 0;
           targetFile.metadata.name = element[0].files[0].name.replace(/(\.[^/.]+)+$/, "");
-          console.log(targetFile);
+          console.log(targetFile, targetFile.data.size);
           scope.$apply();
           
 
@@ -57,16 +57,17 @@ angular.module('MEANcraftApp.overview')
             
             var fileReader = new FileReader();
             //headerReader.onload = fileHeader;
-            
             var blob = {};
+            var amount = 0;
             var block = function () {
-              blob = fileData.slice(offset, chunkSize + offset);
+              amount = (targetFile.offset > fileSize) ? (targetFile.offset + chunkSize) - fileSize  + chunkSize : chunkSize + targetFile.offset;
+              blob = fileData.slice(targetFile.offset, amount);
               fileReader.readAsArrayBuffer(blob);
               fileReader.onload = foo;
             };
             
             var foo = function (event) {
-              console.log(offset);
+              //console.log(event.target.result.length);
               
               if (targetFile.offset > fileSize) {
                 targetFile.offset = targetFile.offset - fileData.size;
@@ -78,7 +79,7 @@ angular.module('MEANcraftApp.overview')
               if (event.target.error === null && targetFile.offset <= fileSize) {
                 targetFile.offset += chunkSize;
                 //targetFile.offset = offset
-                console.log(targetFile.offset);
+                //console.log(targetFile.offset);
                 //scope.offset = parseFloat(offset);
                 chunkCallback({
                   chunk: event.target.result

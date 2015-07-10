@@ -38,17 +38,17 @@ module.exports = function (app, uploadNsp) {
       };
       activeStreams.push({token: token, stream: readStream});
       socket.emit('begin', {token: token});
-      Model.insert(readStream, {
-        filename: message.filename,
-        metadata: { 
-          name: message.metadata.name,
-          type: message.metadata.type,
-          token: token,
-          ext: fileType.ext
-        }
-      }, function () {
-        console.log('file upload');
-      });
+        Model.insert(readStream, {
+          filename: message.filename,
+          metadata: { 
+            name: message.metadata.name,
+            type: message.metadata.type,
+            token: token,
+            ext: fileType.ext
+          }
+        }, function () {
+          console.log('file upload');
+        });
     });
   }
 
@@ -56,6 +56,7 @@ module.exports = function (app, uploadNsp) {
     console.log('UploadSocket [END]');
     if (!message) return;
     var position = util.deepIndexOf(activeStreams, 'token', message.token);
+    if (position === 1) return;
     activeStreams[position].stream.push(null);
     activeStreams.splice(position, 1);
   }
@@ -63,12 +64,13 @@ module.exports = function (app, uploadNsp) {
   function ping () {
     this.emit('ping');
   }
-
   function chunk (message) {
     console.log('UploadSocket [CHUNK]', message.token);
     if (!message) return;
     var position = util.deepIndexOf(activeStreams, 'token', message.token);
-    var currentStream = (position === -1) ? null : activeStreams[position].stream;
+    console.log(message.chunk.length);
+    if (position === 1) return;
+    var currentStream = activeStreams[position].stream;
     currentStream.push(message.chunk);
   }
  

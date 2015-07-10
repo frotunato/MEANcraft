@@ -1,5 +1,6 @@
 node_modules
 public
+temp
 *.tmp
 client/bower_components
 dist
@@ -10,3 +11,4 @@ secret.json
 server/container
 server/temp
 *.tar
+*.gz
