@@ -144,7 +144,7 @@ angular.module('MEANcraftApp.overview')
 
     UploadSocket.on('err', function (err) {
       window.alert(err);
-    })
+    });
 
     this.exec = {
       data: null,
@@ -196,9 +196,7 @@ angular.module('MEANcraftApp.overview')
           });
         });
       }
-      
       processElement();
-
     };
 
   });

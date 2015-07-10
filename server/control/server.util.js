@@ -1,6 +1,7 @@
 var async = require('async');
 var fs = require('fs');
 var fileType = require('file-type');
+var tar = require('tar-fs');
 
 function deepIndexOf (array, attr, value) {
   var res = -1;
@@ -59,7 +60,16 @@ function getMapAndExec (dir, callback) {
     callback(mapDirs, execFiles);
   });
 }
-
+/*
+function deployFile (readStream, metadata, cb) {
+  var gzipStream = zlib.createGzip();
+  var writeStream = tar.extract('./temp');
+  readStream.pipe(gzipStream).pipe(writeStream);
+  readStream.on('finish', function () {
+    cb();
+  });
+}
+*/
 function getFileType (input, cb) {
   var type = {};
   var isValidType = function (type) {

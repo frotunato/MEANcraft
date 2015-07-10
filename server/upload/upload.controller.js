@@ -26,12 +26,12 @@ module.exports = function (app, uploadNsp) {
     if (!message) return;
     var socket = this;
     var token = util.base64Encode(message.metadata.name + '-' + Date.now());
-    util.getFileType(message.header, function (err, type) {
+    util.getFileType(message.header, function (err, fileType) {
       if (err) {
         socket.emit('err', err);
         return;    
       }
-      console.log(type);
+      console.log(fileType);
       var readStream = new Stream.Readable();
       readStream._read = function noop () {
         socket.emit('chunk', {token: token});
@@ -43,7 +43,8 @@ module.exports = function (app, uploadNsp) {
         metadata: { 
           name: message.metadata.name,
           type: message.metadata.type,
-          token: token
+          token: token,
+          ext: fileType.ext
         }
       }, function () {
         console.log('file upload');

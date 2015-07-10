@@ -28,21 +28,25 @@ module.exports = function (app, serverNsp) {
   	if (!message) return;
   	var socket = this;
   	console.log(message);
-  	Model.readStreamFromId(message.map, function (err, readStream) {
-  		if (err) {
-  			console.log(err);
-  			socket.emit('err', err);
-  			return;
-  		}
-  		var writeStream = fs.createWriteStream('./temp/a');
-  		readStream.pipe(writeStream);
-  		writeStream.on('close', function () {
-  			util.getFileType('./temp/a', function (err, type) {
-  				console.log(type, __dirname);
-  			});
-  		});
+  	Model.extractFile(message.exec, function () {
+  		console.log('EXTRACTED');
   	});
-    
+  	/*
+  		Model.readStreamFromId(message.map, function (err, readStream, metadata) {
+  			if (err) {
+  				console.log(err);
+  				socket.emit('err', err);
+  				return;
+  			}
+  			console.log(metadata);
+  			var writeStream = fs.createWriteStream('./temp/' + Date.now());
+  			readStream.pipe(writeStream);
+  			writeStream.on('close', function () {
+  				console.log('file writted');
+  			});
+  		
+  		});
+    	*/
     /*
     	if (isUp === false) {
     	  process.send({

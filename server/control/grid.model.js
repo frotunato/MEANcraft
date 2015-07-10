@@ -8,6 +8,7 @@ var util = require('./server.util');
 var rimraf = require('rimraf');
 var fs = require('fs');
 var tar = require('tar-fs');
+var zlib = require('zlib');  
 
 function insert (readStream, data, cb) {
   var writeStream = gridfs.createWriteStream(data);
@@ -87,18 +88,40 @@ function appendBackup (readStream, data, cb) {
   });
 }
 
-function readStreamFromId (id, cb) {
+function _getReadStreamFromId (id, cb) {
   if (!id || typeof id !== 'string') {
     cb('[readStreamFromId]: error, no id provided');
     return;
   }
-  var stream = gridfs.createReadStream({_id: id});
-  stream.once('error', function (err) {
-    cb('[readStreamFromId]: ' + err);
-    return;
+  gridfs.findOne({_id: id}, function (err, file) {
+    var stream = gridfs.createReadStream({_id: id});
+    var metadata = file.metadata;
+    stream.once('error', function (err) {
+      cb('[readStreamFromId]: ' + err);
+      return;
+    });
+    cb(null, stream, metadata);
   });
-  console.log('read object', id);
-  cb(null, stream);
+}
+
+function extractFile (id, cb) {
+  _getReadStreamFromId(id, function (err, readStream, metadata) {
+    console.log(metadata);
+    var c = 0;
+    var gunzip = require('gunzip-maybe');
+    var gzipStream = zlib.Unzip();
+    readStream.on('data', function () {
+      c++;
+      console.log(c);
+    });
+    //var writeStream = tar.extract('./temp/');
+    var writeStream = fs.createWriteStream('./temp/a2');
+    readStream.pipe(gunzip()).pipe(writeStream);
+    //readStream.pipe(writeStream);
+    writeStream.on('close', function () {
+      cb();
+    });
+  });
 }
 
 function getMapsAndBackups (callback) {
@@ -130,7 +153,8 @@ function writeServerToDisk (mapId, execId, callback) {
     function (cb) {
       readStreamFromId(mapId, function (err, readStream) {
         if (err) {
-          return cb(err);
+          cb(err);
+          return;
         }
         readStream.pipe(writeStream);
         var writeStream = tar.extract('./temp');
@@ -161,7 +185,7 @@ gridSchema.statics.insert = insert;
 gridSchema.statics.saveServerToDB = saveServerToDB;
 gridSchema.statics.appendBackup = appendBackup;
 gridSchema.statics.getMapsAndBackups = getMapsAndBackups;
-gridSchema.statics.readStreamFromId = readStreamFromId;
+gridSchema.statics.extractFile = extractFile;
 gridSchema.statics.writeServerToDisk = writeServerToDisk;
 
 module.exports = mongoose.model('Grid', gridSchema, "fs.files");
