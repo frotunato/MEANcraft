@@ -5,88 +5,133 @@ var tar = require('tar-fs');
 var rimraf = require('rimraf');
 var path = require('path');
 
-function sanitizeMap (directory, callback) {
-  var mapDirectories = ['region', 'DIM1', 'DIM-1'];
-  async.waterfall([
-    function (wCb) {
-      _getDirs(directory, [], wCb);
-    },
-    function (dirs, files, wCb) {
-      var _isValidDir = function (dir, fCb) {
-        var matches = [];
-        var refs = ['region', 'DIM1', 'DIM-1'];
-        _getDirs(path.join(directory, dir), [], function (err, nestedDirs, nestedFiles) {
-          async.each(nestedDirs, 
-            function (nestedDir, eCb) {
-              if (refs.indexOf(nestedDir) !== -1) {
-                matches.push(nestedDir);
-              }
-              eCb(null);
-            },
-            function (err) {
-              if (matches.length > 0) {
-                fCb(true);
-              } else {
-                fCb(false);
-              }
-            });
+function sanitize (root, sCb) {
+  
+  var _getDirs = function (base, exclude, cb) {
+    var path = require('path');
+    async.waterfall([
+      function (wCb) {
+        fs.readdir(base, wCb);
+      },
+      function (elements, wCb) {
+        elements = elements.filter(function (el) {
+          return exclude.indexOf(el) === -1;
         });
-      };
-      async.filter(dirs, _isValidDir, function (mapDirs) {
-        wCb(null, mapDirs, files);
-      });
-    },
-    function (mapDirs, filesToRemove, wCb) {
-      var removedFiles = [];
-      async.each(filesToRemove,
-        function (fileToRemove, eCb) {
-          rimraf(path.join(directory, fileToRemove), function (err) {
-            removedFiles.push(fileToRemove);
-            eCb(err);
+        var _isDir = function (element, fCb) {
+          fs.stat(path.join(base, element), function (err, stats) {
+            if (stats.isDirectory()) {
+              fCb(true);
+            } else {
+              fCb(false);
+            }
           });
+        };
+        async.filter(elements, _isDir, function (dirs) {
+          var files = elements.filter(function (el) {
+            return dirs.indexOf(el) < 0;
+          });
+          wCb(null, dirs, files);
+        });
+      }
+    ],
+    function (err, dirs, files) {
+      cb(err, dirs, files);
+    });
+  };
+  var _isMapDir = function (directory, fCb) {
+    var matches = [];
+    var refs = ['region', 'DIM1', 'DIM-1'];
+    _getDirs(path.join(root, directory), [], function (err, nestedDirs, nestedFiles) {
+      async.each(nestedDirs, 
+        function (nestedDir, eCb) {
+          if (refs.indexOf(nestedDir) !== -1) {
+            matches.push(nestedDir);
+          }
+          eCb(null);
         },
         function (err) {
-          wCb(err, mapDirs, removedFiles);
-        });
-    }
-  ],
-    function (err, matches, removed) {
-      console.log(matches, removed);
-    });
-}
-
-
-var _getDirs = function (base, exclude, cb) {
-  var path = require('path');
-  async.waterfall([
-    function (wCb) {
-      fs.readdir(base, wCb);
-    },
-    function (elements, wCb) {
-      elements = elements.filter(function (el) {
-        return exclude.indexOf(el) < 0;
-      });
-      var _isDir = function (element, fCb) {
-        fs.stat(path.join(base, element), function (err, stats) {
-          if (stats.isDirectory()) {
+          if (matches.length > 0) {
             fCb(true);
           } else {
             fCb(false);
           }
         });
-      };
-      async.filter(elements, _isDir, function (dirs) {
-        var files = elements.filter(function (el) {
-          return dirs.indexOf(el) < 0;
+    });
+  };
+  var _sanitizeMap = function (callback) {
+    async.waterfall([
+      function (wCb) {
+        _getDirs(root, [], wCb);
+      },
+      function (dirs, files, wCb) {
+        async.filter(dirs, _isMapDir, function (mapDirs) {
+          var dirsToRemove = dirs.filter(function (el) {
+            return mapDirs.indexOf(el) === -1;
+          });
+          var thingsToRemove = files.concat(dirsToRemove);
+          wCb(null, mapDirs, thingsToRemove);
         });
-        wCb(null, dirs, files);
+      },
+      function (mapDirs, thingsToRemove, wCb) {
+        var removedThings = [];
+        async.each(thingsToRemove,
+          function (thingToRemove, eCb) {
+            rimraf(path.join(root, thingToRemove), function (err) {
+              removedThings.push(thingToRemove);
+              eCb(err);
+            });
+          },
+          function (err) {
+            wCb(err, mapDirs, removedThings);
+          });
+      }
+    ],
+      function (err, matches, removed) {
+        callback(err, matches, removed);
+    });
+  };
+  var _sanitizeExec = function (exclude, callback) {
+    async.waterfall([
+      function (wCb) {
+        _getDirs(root, exclude, wCb);
+      },
+      function (filteredDirs, files, wCb) {
+        async.filter(filteredDirs, _isMapDir, function (execMapDirs) {
+          wCb(null, execMapDirs);
+        });
+      },
+      function (execMapDirs, wCb) {
+        var removedThings = [];
+        async.each(execMapDirs, 
+          function (execMapDir, eCb) {
+            rimraf(path.join(root, execMapDir), function (err) {
+              removedThings.push(execMapDir);
+              eCb(err);
+            });
+          },
+          function (err) {
+            wCb(err, removedThings);
+          });
+      }
+    ], function (err, sExecRemoved) {
+      callback(err, sExecRemoved)
+    });
+  };
+  
+  async.waterfall([
+    function (wCb) {
+      _sanitizeMap(wCb);
+    },
+    function (matches, sMapRemoved, wCb) {
+      _sanitizeExec(matches, function (err, sExecRemoved) {
+        wCb(err, sMapRemoved, sExecRemoved);
       });
     }
-  ],
-  function (err, dirs, files) {
-    cb(err, dirs, files);
+  ], function (err, sMapRemoved, sExecRemoved) {
+    console.log(sMapRemoved, sExecRemoved, err);
+    sCb(err, sMapRemoved, sExecRemoved);
   });
-};
+}
 
 function deepIndexOf (array, attr, value) {
   var res = -1;
