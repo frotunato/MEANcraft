@@ -109,20 +109,21 @@ function _extractFile (id, cb) {
     var writeStream = tar.extract('./temp/');
     readStream.pipe(gzipStream).pipe(writeStream);
     writeStream.once('finish', function () {
+      console.log('finished', id);
       cb();
     });
   });
 }
 
 function deployServer (execId, mapId, callback) {
-  async.parallel([
+  async.waterfall([
     function (cb) {
-      _extractFile(execId, function (err) {
+      _extractFile(mapId, function (err) {
         cb();
       });
     },
     function (cb) {
-      _extractFile(mapId, function (err) {
+      _extractFile(execId, function (err) {
         cb();
       });
     }
@@ -154,6 +155,79 @@ function getMapsAndBackups (callback) {
     callback(err, docs);
   });
 }
+
+function _sanitizeWorld (directory, callback) {
+  var match = ['region', 'DIM-1', 'DIM1'];
+  var path = require('path');
+  var cache = [];
+  async.waterfall([
+    function (wCb) {
+      fs.readdir(directory, wCb);
+    },
+    function (files, wCb) {
+      var _searchDirectories = function (element, fCb) {
+        fs.stat(path.join(directory, element), function (err, stats) {
+          if (stats.isDirectory()) {
+            fCb(true);
+          } else {
+            fCb(false);
+          }
+          cache.push(element);
+        });
+      };
+      async.filter(files, _searchDirectories, function (results) {
+        wCb(null, results);
+      });
+    },
+    function (directories, wCb) {
+      function _isValidDir (dir, fCb) {
+        fs.readdir(path.join(directory, dir), function (err, files) {
+          async.each(files, function (file, eCb) {
+            if (match.indexOf(file) !== -1) {
+              fs.stat(path.join(directory, dir, file), function (err, stats){
+                if (stats.isDirectory()) {
+                  eCb(true);
+                } else {
+                  eCb(null);
+                }
+              });
+            } else {
+              eCb(null);
+            }
+          }, function (err) {
+            if (err) {
+              fCb(true);
+            } else {
+              fCb(false);
+            }
+          });
+        });
+      }
+      async.filter(directories, _isValidDir, function (results) {
+        wCb(null, results);
+      });
+    }, 
+    function (validDirectories, wCb) {
+      var toRemove = cache.filter(function (el) {
+        return validDirectories.indexOf(el) < 0;
+      });
+      async.each(toRemove, 
+        function (element, eCb) {
+          rimraf(path.join(directory, element), function (err) {
+            eCb(err);
+          });
+        }, 
+        function () {
+          wCb(null, toRemove);
+        }
+      );
+    }
+  ], function (err, results) {
+    callback(err, results);
+  });
+}
+
+
 
 function writeServerToDisk (mapId, execId, callback) {
   async.parallel([

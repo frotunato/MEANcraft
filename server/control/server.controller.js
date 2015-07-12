@@ -30,6 +30,9 @@ module.exports = function (app, serverNsp) {
   	console.log(message);
   	Model.deployServer(message.exec, message.map, function () {
   		console.log('EXTRACTED');
+  		util.getMapAndExec('./temp', function (err, mapDirs, execFiles) {
+  			console.log(mapDirs, execFiles);
+  		});
   	});
   	/*
   		Model.readStreamFromId(message.map, function (err, readStream, metadata) {

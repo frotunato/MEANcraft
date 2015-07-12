@@ -2,28 +2,26 @@ var fs = require('fs');
 var async = require('async');
 var Model = require('../control/grid.model');
 var Stream = require('stream');
-var activeStreams = [];
+var streamPool = [];
 var util = require('../control/server.util');
-
 /*
-  base64.decode = function (encoded) {
-    return new Buffer(encoded || '', 'base64').toString('utf8');
-  };
+var _streamPool = {
+  pool: [],
+  add: function (token) {
+    var res = false;
+    if (token && typeof token === 'string') {
+
+    }
+    return res;
+  }
+};
 */
-
-function addSocket () {
-
-}
-
-function removeSocket () {
-}
-
 module.exports = function (app, uploadNsp) {
   
   function begin (message) {
+    //var position = util.deepIndexOf(streamPool, 'token', message.token);
+    if (!message.token) return;
     console.log('UploadSocket [BEGIN]', message);
-    //var position = util.deepIndexOf(activeStreams, 'token', message.token);
-    if (!message) return;
     var socket = this;
     var token = util.base64Encode(message.metadata.name + '-' + Date.now());
     util.getFileType(message.header, function (err, fileType) {
@@ -36,7 +34,7 @@ module.exports = function (app, uploadNsp) {
       readStream._read = function noop () {
         socket.emit('chunk', {token: token});
       };
-      activeStreams.push({token: token, stream: readStream});
+      streamPool.push({token: token, stream: readStream});
       socket.emit('begin', {token: token});
         Model.insert(readStream, {
           filename: message.filename,
@@ -55,10 +53,10 @@ module.exports = function (app, uploadNsp) {
   function end (message) {
     console.log('UploadSocket [END]');
     if (!message) return;
-    var position = util.deepIndexOf(activeStreams, 'token', message.token);
+    var position = util.deepIndexOf(streamPool, 'token', message.token);
     if (position === 1) return;
-    activeStreams[position].stream.push(null);
-    activeStreams.splice(position, 1);
+    streamPool[position].stream.push(null);
+    streamPool.splice(position, 1);
   }
 
   function ping () {
@@ -67,10 +65,10 @@ module.exports = function (app, uploadNsp) {
   function chunk (message) {
     console.log('UploadSocket [CHUNK]', message.token);
     if (!message) return;
-    var position = util.deepIndexOf(activeStreams, 'token', message.token);
+    var position = util.deepIndexOf(streamPool, 'token', message.token);
     console.log(message.chunk.length);
     if (position === 1) return;
-    var currentStream = activeStreams[position].stream;
+    var currentStream = streamPool[position].stream;
     currentStream.push(message.chunk);
   }
  
