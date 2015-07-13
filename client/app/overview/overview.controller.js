@@ -108,6 +108,10 @@ angular.module('MEANcraftApp.overview')
       window.alert(message);
     });
 
+    ServerSocket.on('chat', function (message) {
+      console.log(message);
+    });
+
     ServerSocket.on('list', function (message) {
       if (!message) return;
       console.log(message);

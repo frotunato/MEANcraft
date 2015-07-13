@@ -7,13 +7,15 @@ angular.module('MEANcraftApp')
 
   .factory('ServerSocket', function (socketFactory, $location) {
   	//console.log(ServerSocket)
-    var serverSocket = io.connect({transports: ['websocket']});
-    console.log('ServerSocket launched', $location.host() + ':' + $location.port() + '/server');
+    var path = $location.host() + ':' + $location.port() + '/server';
+    var serverSocket = io.connect(path, {transports: ['websocket']});
+    console.log('ServerSocket launched', path);
   	return socketFactory({ioSocket: serverSocket});
   })
 
   .factory('UploadSocket', function (socketFactory, $location) {
-    var uploadSocket = io.connect({transports: ['xhr-polling', 'websocket']});
-    console.log('UploadSocket launched', $location.host() + ':' + $location.port() + '/upload');
+    var path = $location.host() + ':' + $location.port() + '/upload';
+    var uploadSocket = io.connect(path, {transports: ['xhr-polling', 'websocket']});
+    console.log('UploadSocket launched', path);
     return socketFactory({ioSocket: uploadSocket});
   });

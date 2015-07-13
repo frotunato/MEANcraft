@@ -14,6 +14,7 @@ function startWebServer () {
 	webServer.on('message', function (message) {
 		switch (message.command) {
 			case 'start':
+				message.config = message.config || {};
 				startGameServer(message.config);
 				webServer.send({command: 'status', status: true});
 				gameServer.stdout.on('data', function (data) {
