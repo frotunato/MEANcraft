@@ -5,6 +5,7 @@ var tar = require('tar-fs');
 var rimraf = require('rimraf');
 var path = require('path');
 
+
 function sanitize (root, sCb) {
   
   var _getDirs = function (base, exclude, cb) {
@@ -97,10 +98,10 @@ function sanitize (root, sCb) {
       },
       function (filteredDirs, files, wCb) {
         async.filter(filteredDirs, _isMapDir, function (execMapDirs) {
-          wCb(null, execMapDirs);
+          wCb(null, execMapDirs, files);
         });
       },
-      function (execMapDirs, wCb) {
+      function (execMapDirs, files, wCb) {
         var removedThings = [];
         async.each(execMapDirs, 
           function (execMapDir, eCb) {
@@ -110,11 +111,11 @@ function sanitize (root, sCb) {
             });
           },
           function (err) {
-            wCb(err, removedThings);
+            wCb(err, removedThings, files);
           });
       }
-    ], function (err, sExecRemoved) {
-      callback(err, sExecRemoved)
+    ], function (err, sExecRemoved, files) {
+      callback(err, sExecRemoved, files);
     });
   };
   
@@ -123,16 +124,15 @@ function sanitize (root, sCb) {
       _sanitizeMap(wCb);
     },
     function (matches, sMapRemoved, wCb) {
-      _sanitizeExec(matches, function (err, sExecRemoved) {
-        wCb(err, sMapRemoved, sExecRemoved);
+      _sanitizeExec(matches, function (err, sExecRemoved, files) {
+        wCb(err, sMapRemoved, sExecRemoved, files);
       });
     }
-  ], function (err, sMapRemoved, sExecRemoved) {
-    console.log(sMapRemoved, sExecRemoved, err);
-    sCb(err, sMapRemoved, sExecRemoved);
+  ], function (err, sMapRemoved, sExecRemoved, files) {
+    //console.log(sMapRemoved, sExecRemoved, files);
+    sCb(err, sMapRemoved, sExecRemoved, files);
   });
 }
-
 function deepIndexOf (array, attr, value) {
   var res = -1;
   for (var i = array.length - 1; i >= 0; i--) {

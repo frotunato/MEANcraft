@@ -12,3 +12,4 @@ server/container
 server/temp
 *.tar
 *.gz
+*.jar
