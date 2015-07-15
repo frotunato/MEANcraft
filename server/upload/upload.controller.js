@@ -20,7 +20,7 @@ module.exports = function (app, uploadNsp) {
   
   function begin (message) {
     //var position = util.deepIndexOf(streamPool, 'token', message.token);
-    if (!message.token) return;
+    if (!message) return;
     console.log('UploadSocket [BEGIN]', message);
     var socket = this;
     var token = util.base64Encode(message.metadata.name + '-' + Date.now());

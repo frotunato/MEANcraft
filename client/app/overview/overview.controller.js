@@ -140,7 +140,9 @@ angular.module('MEANcraftApp.overview')
         map: self.map.selected._id
       });
     };
-
+    this.stop = function () {
+      ServerSocket.emit('stop');
+    };
   })
 
   .controller('uploadServerCtrl', function ($scope, UploadSocket) {

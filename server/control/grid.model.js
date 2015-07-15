@@ -13,7 +13,7 @@ var zlib = require('zlib');
 function insert (readStream, data, cb) {
   var writeStream = gridfs.createWriteStream(data);
   readStream.pipe(writeStream);
-  writeStream.on('close', function (file) {
+  writeStream.once('close', function (file) {
     cb(file);
   });
 }
@@ -172,10 +172,17 @@ function writeServerToDisk (mapId, execId, callback) {
   });
 }
 
+function getFileData (id, cb) {
+  gridfs.findOne({_id: id}, function (err, doc) {
+    cb(err, doc);
+  });
+}
+
 gridSchema.statics.insert = insert;
 gridSchema.statics.saveServerToDB = saveServerToDB;
 gridSchema.statics.appendBackup = appendBackup;
 gridSchema.statics.getMapsAndBackups = getMapsAndBackups;
+gridSchema.statics.getFileData = getFileData;
 gridSchema.statics.writeServerToDisk = writeServerToDisk;
 gridSchema.statics.extractFile = _extractFile;
 module.exports = mongoose.model('Grid', gridSchema, "fs.files");

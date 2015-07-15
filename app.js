@@ -28,7 +28,6 @@ function startWebServer () {
 				break;
 			case 'stop':
 				if (message.delay) {
-
 				} else {
 					if (gameServer) {
 						gameServer.stdin.write('stop' + '\r');
@@ -36,8 +35,6 @@ function startWebServer () {
 				}
 				break;
 		}
-
-		
 	});
 
 
