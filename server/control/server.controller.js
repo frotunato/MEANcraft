@@ -28,7 +28,6 @@ function deployServer (execId, mapId, callback) {
       });
     },
     function (matches, sMapRemoved, wCb) {
-    	console.log(matches, sMapRemoved, wCb);
     	sanitizeExec(matches, sMapRemoved, function (err, exec) {
         wCb(err, exec);
      });
@@ -127,7 +126,6 @@ function sanitizeMap (callback) {
 }
 
 function sanitizeExec (exclude, thingsToRemove, callback) {
-  console.log('sanitize invoked with', exclude, thingsToRemove, callback);
   var root = './temp/';
   var _getExec = function (files, callback) {
     var _isExec = function (file, fCb) {
@@ -282,6 +280,7 @@ function sanitizeExec (exclude, thingsToRemove, callback) {
 }
 
 function launchServer (exec, opts, callback) {
+	console.log('launchServer with', exec, opts);
 	//if (isUp === false) {
 	  process.send({
 	    command: 'start', 
@@ -298,7 +297,7 @@ function launchServer (exec, opts, callback) {
 	//}
 }
 
-function bundleServer () {
+function bundleServer (cb) {
 	var root = './temp/';
 	var _getWriteStream = function (elements, exclude, callback) {
 	  var archiver = null;
@@ -399,14 +398,18 @@ function bundleServer () {
 					});
 				}
 			],
-				function () {
-					console.log('all two bundled, passing to waterfall');
-					wCb();
+				function (err) {
+					rimraf('./temp', function () {
+						fs.mkdir('./temp', function () {
+							wCb(err);
+						});
+					});
+					wCb(err);
 			});
 		}
 	],
-		function () {
-
+		function (err) {
+			cb(err);
 		});
 	/*
 	var threshold = 1200000; //20 minutes
@@ -431,7 +434,6 @@ module.exports = function (app, serverNsp) {
     		serverNsp.emit('chat', message.stdout);
     		break;
     }
-
   });
 
   function start (message) {
@@ -443,17 +445,26 @@ module.exports = function (app, serverNsp) {
   	} else if (lock) {
   		socket.emit('err', 'There is already a server starting');
   	} else {
+  		lock = true;
   		console.log('ControlSocket [START]', message);
   		deployServer(message.exec, message.map, function (err, exec) {
+  			lock = false;
   			if (err) return socket.emit('err', err);
   			launchServer(exec);
   		});
-  	
   	}
   }
 
   function stop () {
-  	bundleServer();
+  	if (!lock) {
+  		lock = true;
+  		bundleServer(function () {
+  			lock = false;
+  		});
+  	} else {
+  		this.emit('err', 'The server is busy stopping...');
+  	}
+  	
   /*
     if (isUp === true) {
       process.send({
@@ -477,7 +488,6 @@ module.exports = function (app, serverNsp) {
   function list () {
     var socket = this;
     Model.getMapsAndBackups(function (err, docs) {
-      //console.log(docs)
       socket.emit('list', docs);
     });
   }

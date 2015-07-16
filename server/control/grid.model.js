@@ -73,10 +73,20 @@ function _extractFile (id, cb) {
     readStream.pipe(decoderStream).pipe(writeStream);
     return writeStream;
   };
+  var _getEndEvent = function (ext) {
+    var res = null;
+    if (ext === 'gz' || ext === 'tar.lz4') {
+      res = 'finish';
+    } else if (ext === 'zip.lz4') {
+      res = 'close';
+    }
+    return res;
+  };
   _getReadStreamFromId(id, function (err, readStream, file) {
     var writeStream = _getWriteStream(readStream, file.metadata.ext);
-    var ev = (file.metadata.ext === 'gz') ? 'finish' : 'close';
-    writeStream.once(ev, function () {
+    var ev = _getEndEvent(file.metadata.ext);
+    console.log('listening for', ev);
+    writeStream.on(ev, function () {
       console.log('finished', id);
       cb(err, file);
     });
