@@ -10,8 +10,6 @@ var isUp = false;
 var lastCode = null;
 var lock = false;
 
-//fix sanitize
-
 function deployServer (execId, mapId, callback) {
   async.waterfall([
     function (wCb) {
@@ -303,42 +301,50 @@ function launchServer (exec, opts, callback) {
 function bundleServer () {
 	var root = './temp/';
 	var _getWriteStream = function (elements, exclude, callback) {
-	  var archiver = require('archiver')('zip', {store: true});
+	  var archiver = null;
 	  var lz4 = require('lz4');
 	  var encoder = lz4.createEncoderStream();
 	  var actions = [];
 	  var excludedSrcs = exclude.map(function (element) {
 	    return '!' + element + '/**';
 	  }).concat(['**/*']).reverse();
-	  elements.forEach(function (element, index, array) {
-	    var cwd = path.join(root, element);
-	    var src = ['**/*'];
-	    if (exclude.length > 0) {
-	      cwd = root;
-	      src = excludedSrcs;
-	    }
+	  
+	  if (exclude.length > 0) {
+	    archiver = require('archiver')('tar');
 	    actions.push({
-	      cwd: cwd,
+	      cwd: root,
 	      expand: true,
-	      src: src,
-	      dest: element
+	      src: excludedSrcs,
+	      dest: undefined
 	    });
-	  });
+	  } else {
+	    archiver = require('archiver')('zip', {store: true});
+	    elements.forEach(function (element, index, array) {
+	      actions.push({
+	        cwd: path.join(root, element),
+	        expand: true,
+	        src: ['**/*'],
+	        dest: element
+	      });
+	    });
+	  }
+	  //var writeStream = fs.createWriteStream(Date.now() + '.zip');
 	  console.log(actions);
 	  archiver.bulk(actions);
 	  archiver.finalize();
 	  archiver.pipe(encoder);
 	  callback(encoder);
 	};
-	var _fixFilename = function (filename) {
+	var _fixFilename = function (filename, type) {
 		var tarGz = filename.indexOf(".tar.gz");
 		var zip = filename.indexOf(".zip");
+		var archiverFormat = (type === 'map') ? '.zip' : '.tar'; 
 		if (tarGz !== -1) {
-			filename = filename.substring(0, tarGz).concat(".zip.lz4");
+			filename = filename.substring(0, tarGz).concat(archiverFormat).concat(".lz4");
 		} else if (zip !== -1) {
 			filename = filename.concat(".lz4");
 		} else {
-			filename = filename.concat(".zip.lz4");
+			filename = filename.concat(archiverFormat).concat(".lz4");
 		}
 		return filename;
 	};
@@ -358,13 +364,13 @@ function bundleServer () {
 			async.parallel([
 				function (pCb) {
 					_getWriteStream(mapDirs, [], function (writeStream) {
-						var fixedFilename = _fixFilename(current.map.filename);
+						var fixedFilename = _fixFilename(current.map.filename, 'map');
 					  var data = {
 					  	filename: timestamp + fixedFilename,
 					  	metadata: {
 					  		name: timestamp + current.map.metadata.name,
 					  		type: 'map',
-					  		ext: 'lz4',
+					  		ext: 'zip.lz4',
 					  		parent: current.map._id
 					  	}
 					  };
@@ -376,13 +382,13 @@ function bundleServer () {
 				},
 				function (pCb) {
 					_getWriteStream(files, mapDirs, function (writeStream) {
-						var fixedFilename = _fixFilename(current.exec.filename);
+						var fixedFilename = _fixFilename(current.exec.filename, 'exec');
 						var data = {
 							filename: timestamp + fixedFilename,
 							metadata: {
 								name: timestamp + current.exec.metadata.name,
 								type: 'exec',
-								ext: 'lz4',
+								ext: 'tar.lz4',
 								parent: current.exec._id
 							}
 						};
@@ -413,8 +419,6 @@ function bundleServer () {
 }
 
 module.exports = function (app, serverNsp) {
-
-  //console.log(serverNsp)
   process.on('message', function (message) {
     switch (message.command) {
     	case 'status':
@@ -442,7 +446,6 @@ module.exports = function (app, serverNsp) {
   		console.log('ControlSocket [START]', message);
   		deployServer(message.exec, message.map, function (err, exec) {
   			if (err) return socket.emit('err', err);
-  			//current = {map: message.map, exec: message.exec};
   			launchServer(exec);
   		});
   	

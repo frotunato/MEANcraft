@@ -8,10 +8,14 @@ var util = require('./server.util');
 var rimraf = require('rimraf');
 var fs = require('fs');
 var tar = require('tar-fs');
-var zlib = require('zlib');  
+var zlib = require('zlib');
+var lz4 = require('lz4');
+var unzip = require('unzip2');
+
 
 function insert (readStream, data, cb) {
   var writeStream = gridfs.createWriteStream(data);
+  //var writeStream = fs.createWriteStream('./temp/' + Date.now() + 'a.zip.lz4');
   readStream.pipe(writeStream);
   writeStream.once('close', function (file) {
     console.log('file inserted');
@@ -52,14 +56,27 @@ function _getReadStreamFromId (id, cb) {
 }
 
 function _extractFile (id, cb) {
+  var _getWriteStream = function (readStream, ext) {
+    var decoderStream = null;
+    var writeStream = null;
+    var eventToListen = null;
+    if (ext === 'gz') {
+      decoderStream = zlib.Gunzip();
+      writeStream = tar.extract('./temp/');
+    } else if (ext === 'zip.lz4') {
+      decoderStream = lz4.createDecoderStream();
+      writeStream = unzip.Extract({path: './temp/'});
+    } else if (ext === 'tar.lz4') {
+      decoderStream = lz4.createDecoderStream();
+      writeStream = tar.extract('./temp/');
+    }
+    readStream.pipe(decoderStream).pipe(writeStream);
+    return writeStream;
+  };
   _getReadStreamFromId(id, function (err, readStream, file) {
-    var lz4 = require('lz4');
-    var unzip = require('unzip2');
-    var decoder = lz4.createDecoderStream();
-    readStream
-    .pipe(decoder)
-    .pipe(unzip.Extract({path: './temp/'}))
-    .once('close', function () {
+    var writeStream = _getWriteStream(readStream, file.metadata.ext);
+    var ev = (file.metadata.ext === 'gz') ? 'finish' : 'close';
+    writeStream.once(ev, function () {
       console.log('finished', id);
       cb(err, file);
     });

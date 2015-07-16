@@ -461,7 +461,7 @@ function bundle () {
 */
 var lz4 = require('lz4');
 var mapDirs = ['HIPERDINO'];
-var execs = ['spigot_server.jar'];
+var execs = ['spigot_server.jar', "logs", "eula.txt", "server.properties"];
 var root = './temp/';
 
 async.parallel([
@@ -474,14 +474,16 @@ async.parallel([
     });
   },
   function (pCb) {
-    _getWriteStream(execs, ['HIPERDINO'], function (writeStream) {
+    _getWriteStream(execs, mapDirs, function (writeStream) {
       writeStream.once('close', function () {
         console.log('finished 2');
         pCb();
       });
     });
   }
-]);
+], function () {
+
+});
 //bundle()
 
 function _getWriteStream (elements, exclude, callback) {
@@ -491,21 +493,32 @@ function _getWriteStream (elements, exclude, callback) {
   var excludedSrcs = exclude.map(function (element) {
     return '!' + element + '/**';
   }).concat(['**/*']).reverse();
-  elements.forEach(function (element, index, array) {
-    var cwd = path.join(root, element);
-    var src = ['**/*'];
-    if (exclude.length > 0) {
-      cwd = root;
-      src = excludedSrcs;
-    }
+  var ext = '.zip';
+  if (exclude.length > 0) {
+    archiver = require('archiver')('tar');
+    ext = '.tar';
     actions.push({
-      cwd: cwd,
+      cwd: root,
       expand: true,
-      src: src,
-      dest: element
+      src: excludedSrcs,
+      dest: undefined
     });
-  });
-  var writeStream = fs.createWriteStream(Date.now() + '.zip');
+  } else {
+    elements.forEach(function (element, index, array) {
+      var cwd = path.join(root, element);
+      var src = ['**/*'];
+      var dest = element;    
+      actions.push({
+        cwd: cwd,
+        expand: true,
+        src: src,
+        dest: dest
+      });
+    });
+  }
+
+
+  var writeStream = fs.createWriteStream(Date.now() + ext);
   console.log(actions);
   archiver.bulk(actions);
   archiver.finalize();
