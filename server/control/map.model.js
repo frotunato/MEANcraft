@@ -8,7 +8,6 @@ var mapSchema = new Schema({
   //backups: []
 });
 
-
 mapSchema.statics.test = function (cb) {
 	this.find({}, cb);
 };

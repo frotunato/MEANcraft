@@ -104,21 +104,6 @@ function sanitizeMap (callback) {
         wCb(null, mapDirs, thingsToRemove);
       });
     }
-    /*
-    function (mapDirs, thingsToRemove, wCb) {
-      var removedThings = [];
-      async.each(thingsToRemove,
-        function (thingToRemove, eCb) {
-          rimraf(path.join(root, thingToRemove), function (err) {
-            removedThings.push(thingToRemove);
-            eCb(err);
-          });
-        },
-        function (err) {
-          wCb(err, mapDirs, removedThings);
-        });
-    }
-    */
   ],
     function (err, matches, removed) {
       callback(err, matches, removed);
@@ -299,51 +284,27 @@ function launchServer (exec, opts, callback) {
 
 function bundleServer (cb) {
 	var root = './temp/';
-	var _getWriteStream = function (elements, exclude, callback) {
-	  var archiver = null;
+	var _getWriteStream = function (elements, callback) {
+	  var tar = require('tar-fs');
 	  var lz4 = require('lz4');
 	  var encoder = lz4.createEncoderStream();
-	  var actions = [];
-	  var excludedSrcs = exclude.map(function (element) {
-	    return '!' + element + '/**';
-	  }).concat(['**/*']).reverse();
-	  
-	  if (exclude.length > 0) {
-	    archiver = require('archiver')('tar');
-	    actions.push({
-	      cwd: root,
-	      expand: true,
-	      src: excludedSrcs,
-	      dest: undefined
-	    });
-	  } else {
-	    archiver = require('archiver')('zip', {store: true});
-	    elements.forEach(function (element, index, array) {
-	      actions.push({
-	        cwd: path.join(root, element),
-	        expand: true,
-	        src: ['**/*'],
-	        dest: element
-	      });
-	    });
-	  }
-	  //var writeStream = fs.createWriteStream(Date.now() + '.zip');
-	  console.log(actions);
-	  archiver.bulk(actions);
-	  archiver.finalize();
-	  archiver.pipe(encoder);
+	  var pack = tar.pack(root, {
+	  	entries: elements
+	  });
+	  pack.pipe(encoder);
 	  callback(encoder);
 	};
-	var _fixFilename = function (filename, type) {
+	var _fixFilename = function (filename) {
 		var tarGz = filename.indexOf(".tar.gz");
 		var zip = filename.indexOf(".zip");
-		var archiverFormat = (type === 'map') ? '.zip' : '.tar'; 
+		var tarLz4 = filename.indexOf(".tar.lz4");
+		//var archiverFormat = (type === 'map') ? '.zip' : '.tar'; 
 		if (tarGz !== -1) {
-			filename = filename.substring(0, tarGz).concat(archiverFormat).concat(".lz4");
+			filename = filename.substring(0, tarGz).concat('.tar.lz4');
 		} else if (zip !== -1) {
 			filename = filename.concat(".lz4");
-		} else {
-			filename = filename.concat(archiverFormat).concat(".lz4");
+		} if (tarLz4 !== -1) {
+			return filename;
 		}
 		return filename;
 	};
@@ -353,23 +314,16 @@ function bundleServer (cb) {
 			sanitizeMap(wCb);
 		},
 		function (mapDirs, files, wCb) {
-			var date = new Date();
-			var timestamp = "[" + date.getDate() + 
-											"-" + date.getMonth() + 
-											"-" + date.getFullYear() +
-											"]_" + date.getHours() +
-											":" + date.getMinutes() + 
-											":" + date.getSeconds() + "_";
 			async.parallel([
 				function (pCb) {
-					_getWriteStream(mapDirs, [], function (writeStream) {
-						var fixedFilename = _fixFilename(current.map.filename, 'map');
+					_getWriteStream(mapDirs, function (writeStream) {
+						var fixedFilename = _fixFilename(current.map.filename);
 					  var data = {
-					  	filename: timestamp + fixedFilename,
+					  	filename: fixedFilename,
 					  	metadata: {
-					  		name: timestamp + current.map.metadata.name,
+					  		name: current.map.metadata.name,
 					  		type: 'map',
-					  		ext: 'zip.lz4',
+					  		ext: 'lz4',
 					  		parent: current.map._id
 					  	}
 					  };
@@ -380,14 +334,14 @@ function bundleServer (cb) {
 					});
 				},
 				function (pCb) {
-					_getWriteStream(files, mapDirs, function (writeStream) {
-						var fixedFilename = _fixFilename(current.exec.filename, 'exec');
+					_getWriteStream(files, function (writeStream) {
+						var fixedFilename = _fixFilename(current.exec.filename);
 						var data = {
-							filename: timestamp + fixedFilename,
+							filename: fixedFilename,
 							metadata: {
-								name: timestamp + current.exec.metadata.name,
+								name: current.exec.metadata.name,
 								type: 'exec',
-								ext: 'tar.lz4',
+								ext: 'lz4',
 								parent: current.exec._id
 							}
 						};

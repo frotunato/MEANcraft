@@ -63,10 +63,11 @@ function _extractFile (id, cb) {
     if (ext === 'gz') {
       decoderStream = zlib.Gunzip();
       writeStream = tar.extract('./temp/');
-    } else if (ext === 'zip.lz4') {
-      decoderStream = lz4.createDecoderStream();
+    } else if (ext === 'zip') {
       writeStream = unzip.Extract({path: './temp/'});
-    } else if (ext === 'tar.lz4') {
+      readStream.pipe(writeStream);
+      return writeStream;
+    } else if (ext === 'lz4') {
       decoderStream = lz4.createDecoderStream();
       writeStream = tar.extract('./temp/');
     }
@@ -75,9 +76,9 @@ function _extractFile (id, cb) {
   };
   var _getEndEvent = function (ext) {
     var res = null;
-    if (ext === 'gz' || ext === 'tar.lz4') {
+    if (ext === 'gz' || ext === 'lz4') {
       res = 'finish';
-    } else if (ext === 'zip.lz4') {
+    } else if (ext === 'zip') {
       res = 'close';
     }
     return res;
@@ -85,7 +86,6 @@ function _extractFile (id, cb) {
   _getReadStreamFromId(id, function (err, readStream, file) {
     var writeStream = _getWriteStream(readStream, file.metadata.ext);
     var ev = _getEndEvent(file.metadata.ext);
-    console.log('listening for', ev);
     writeStream.on(ev, function () {
       console.log('finished', id);
       cb(err, file);
