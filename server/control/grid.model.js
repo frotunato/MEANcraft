@@ -14,60 +14,8 @@ function insert (readStream, data, cb) {
   var writeStream = gridfs.createWriteStream(data);
   readStream.pipe(writeStream);
   writeStream.once('close', function (file) {
+    console.log('file inserted');
     cb(file);
-  });
-}
-
-function saveServerToDB (callback) {
-  async.waterfall([
-    function (cb) {
-      util.getMapAndExec('./game', function (mapDirs, execFiles) {
-        cb(null, mapDirs, execFiles);
-      });
-    },
-    function (mapDirs, execFiles, cb) {
-      async.parallel([
-        function (cb) {
-          var archiver = require('archiver')('tar');
-          var actions = [];
-          for (var i = mapDirs.length - 1; i >= 0; i--) {
-            actions.push({cwd: './game/' + mapDirs[i], expand: true, src: ['**/*'], dest: mapDirs[i]});
-          }
-          archiver.bulk(actions);
-          archiver.finalize();
-          insert(archiver, {filename: 'test ' + Date.now(), metadata: {name: 'test'}}, function (file) {
-            cb(null, file);
-          });
-        },
-        function (cb) {
-          var archiver = require('archiver')('tar');
-          var excludedSrcs = mapDirs.map(function (element) {
-            return '!' + element + '/**';
-          }).concat(['**/*']).reverse();
-          archiver.bulk([{cwd: './game', expand: true, src: excludedSrcs}]);
-          archiver.finalize();
-          insert(archiver, {filename: "exectest"}, function (file) {
-            cb(null, file);
-          });
-        }
-      ], function (err, files) {
-        console.log('** [saveServerToDB completed] **');
-        cb(null, files);
-      });
-    },
-    
-    function (files, cb) {
-      rimraf('./game', function () {
-        cb(null, files);
-      });
-    },   
-    function (files, cb) {
-      fs.mkdir('./game', function () {
-        cb(null, files);
-      });
-    }
-  ], function (err, files) {
-    callback(err, files);
   });
 }
 
@@ -105,12 +53,15 @@ function _getReadStreamFromId (id, cb) {
 
 function _extractFile (id, cb) {
   _getReadStreamFromId(id, function (err, readStream, file) {
-    var gzipStream = zlib.Unzip();
-    var writeStream = tar.extract('./temp/');
-    readStream.pipe(gzipStream).pipe(writeStream);
-    writeStream.once('finish', function () {
+    var lz4 = require('lz4');
+    var unzip = require('unzip2');
+    var decoder = lz4.createDecoderStream();
+    readStream
+    .pipe(decoder)
+    .pipe(unzip.Extract({path: './temp/'}))
+    .once('close', function () {
       console.log('finished', id);
-      cb(err);
+      cb(err, file);
     });
   });
 }
@@ -139,39 +90,6 @@ function getMapsAndBackups (callback) {
   });
 }
 
-function writeServerToDisk (mapId, execId, callback) {
-  async.parallel([
-    function (cb) {
-      readStreamFromId(mapId, function (err, readStream) {
-        if (err) {
-          cb(err);
-          return;
-        }
-        readStream.pipe(writeStream);
-        var writeStream = tar.extract('./temp');
-        writeStream.once('finish', function () {
-          cb(null);
-        });
-    });
-    },
-    function (cb) {
-      readStreamFromId(execId, function (err, readStream) {
-        if (err) {
-          return cb(err);
-        }
-        readStream.pipe(writeStream);  
-        var writeStream = tar.extract('./temp');
-        writeStream.once('finish', function () {
-          cb(null);
-        });
-      });
-    }
-  ], function (err, results) {
-    console.log('** [writeServerToDisk completed] **');
-    callback(err);
-  });
-}
-
 function getFileData (id, cb) {
   gridfs.findOne({_id: id}, function (err, doc) {
     cb(err, doc);
@@ -179,10 +97,8 @@ function getFileData (id, cb) {
 }
 
 gridSchema.statics.insert = insert;
-gridSchema.statics.saveServerToDB = saveServerToDB;
 gridSchema.statics.appendBackup = appendBackup;
 gridSchema.statics.getMapsAndBackups = getMapsAndBackups;
 gridSchema.statics.getFileData = getFileData;
-gridSchema.statics.writeServerToDisk = writeServerToDisk;
 gridSchema.statics.extractFile = _extractFile;
 module.exports = mongoose.model('Grid', gridSchema, "fs.files");

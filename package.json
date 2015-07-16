@@ -33,7 +33,7 @@
     "tar-fs": "latest",
     "file-type": "latest",
     "ls-archive": "latest",
-    "unzip": "latest",
+    "unzip2": "latest",
     "gunzip-maybe": "latest"
   }
 }

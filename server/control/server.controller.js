@@ -10,27 +10,33 @@ var isUp = false;
 var lastCode = null;
 var lock = false;
 
+//fix sanitize
+
 function deployServer (execId, mapId, callback) {
   async.waterfall([
     function (wCb) {
       Model.extractFile(mapId, wCb);
     },
-    function (wCb) {
+    function (doc, wCb) {
     	sanitizeMap(function (err, matches, sMapRemoved) {
+    		current.map = doc;
     		wCb(err, matches, sMapRemoved);
     	});
     },
     function (matches, sMapRemoved, wCb) {
-      Model.extractFile(execId, function (err) {
+      Model.extractFile(execId, function (err, doc) {
+      	current.exec = doc;
       	wCb(err, matches, sMapRemoved);
       });
     },
     function (matches, sMapRemoved, wCb) {
-    	sanitizeExec(matches, function (err, exec) {
+    	console.log(matches, sMapRemoved, wCb);
+    	sanitizeExec(matches, sMapRemoved, function (err, exec) {
         wCb(err, exec);
      });
     },
   ], function (err, exec) {
+    console.log('current after deploy', current);
     callback(err, exec);
   });
 }
@@ -72,7 +78,7 @@ function sanitizeMap (callback) {
     var matches = [];
     var refs = ['region', 'DIM1', 'DIM-1'];
     _getDirs(path.join(root, directory), [], function (err, nestedDirs, nestedFiles) {
-      async.each(nestedDirs, 
+      async.each(nestedDirs,
         function (nestedDir, eCb) {
           if (refs.indexOf(nestedDir) !== -1) {
             matches.push(nestedDir);
@@ -123,6 +129,7 @@ function sanitizeMap (callback) {
 }
 
 function sanitizeExec (exclude, thingsToRemove, callback) {
+  console.log('sanitize invoked with', exclude, thingsToRemove, callback);
   var root = './temp/';
   var _getExec = function (files, callback) {
     var _isExec = function (file, fCb) {
@@ -230,10 +237,11 @@ function sanitizeExec (exclude, thingsToRemove, callback) {
     });
   };
   async.waterfall([
-    function (exclude, thingsToRemove, wCb) {
+    function (wCb) {
       var removedThings = [];
       async.each(thingsToRemove,
         function (thingToRemove, eCb) {
+          console.log('things to remove', thingsToRemove)
           rimraf(path.join(root, thingToRemove), function (err) {
             removedThings.push(thingToRemove);
             eCb(err);
@@ -293,25 +301,107 @@ function launchServer (exec, opts, callback) {
 }
 
 function bundleServer () {
+	var root = './temp/';
+	var _getWriteStream = function (elements, exclude, callback) {
+	  var archiver = require('archiver')('zip', {store: true});
+	  var lz4 = require('lz4');
+	  var encoder = lz4.createEncoderStream();
+	  var actions = [];
+	  var excludedSrcs = exclude.map(function (element) {
+	    return '!' + element + '/**';
+	  }).concat(['**/*']).reverse();
+	  elements.forEach(function (element, index, array) {
+	    var cwd = path.join(root, element);
+	    var src = ['**/*'];
+	    if (exclude.length > 0) {
+	      cwd = root;
+	      src = excludedSrcs;
+	    }
+	    actions.push({
+	      cwd: cwd,
+	      expand: true,
+	      src: src,
+	      dest: element
+	    });
+	  });
+	  console.log(actions);
+	  archiver.bulk(actions);
+	  archiver.finalize();
+	  archiver.pipe(encoder);
+	  callback(encoder);
+	};
+	var _fixFilename = function (filename) {
+		var tarGz = filename.indexOf(".tar.gz");
+		var zip = filename.indexOf(".zip");
+		if (tarGz !== -1) {
+			filename = filename.substring(0, tarGz).concat(".zip.lz4");
+		} else if (zip !== -1) {
+			filename = filename.concat(".lz4");
+		} else {
+			filename = filename.concat(".zip.lz4");
+		}
+		return filename;
+	};
+
 	async.waterfall([
 		function (wCb) {
 			sanitizeMap(wCb);
 		},
 		function (mapDirs, files, wCb) {
+			var date = new Date();
+			var timestamp = "[" + date.getDate() + 
+											"-" + date.getMonth() + 
+											"-" + date.getFullYear() +
+											"]_" + date.getHours() +
+											":" + date.getMinutes() + 
+											":" + date.getSeconds() + "_";
 			async.parallel([
 				function (pCb) {
-					var actions = [];
-					var archiver = require('archiver')('zip', {store: true});
-					var lz4 = require('lz4');
-					var encoderStream = lz4.createEncoderStream();
-
+					_getWriteStream(mapDirs, [], function (writeStream) {
+						var fixedFilename = _fixFilename(current.map.filename);
+					  var data = {
+					  	filename: timestamp + fixedFilename,
+					  	metadata: {
+					  		name: timestamp + current.map.metadata.name,
+					  		type: 'map',
+					  		ext: 'lz4',
+					  		parent: current.map._id
+					  	}
+					  };
+					  Model.insert(writeStream, data, function () {
+					  	console.log('finished bundling map');
+					  	pCb();
+					  });
+					});
+				},
+				function (pCb) {
+					_getWriteStream(files, mapDirs, function (writeStream) {
+						var fixedFilename = _fixFilename(current.exec.filename);
+						var data = {
+							filename: timestamp + fixedFilename,
+							metadata: {
+								name: timestamp + current.exec.metadata.name,
+								type: 'exec',
+								ext: 'lz4',
+								parent: current.exec._id
+							}
+						};
+						Model.insert(writeStream, data, function () {
+							console.log('finished bundling exec');
+							pCb();
+						});
+					});
 				}
 			],
-				function (pCb) {
-
+				function () {
+					console.log('all two bundled, passing to waterfall');
+					wCb();
 			});
 		}
-	]);
+	],
+		function () {
+
+		});
 	/*
 	var threshold = 1200000; //20 minutes
 	Model.getFileData(current.map, function (err, doc) {
@@ -319,7 +409,7 @@ function bundleServer () {
 		var d = new Date(doc.uploadDate);
 		console.log(Date.now() - doc.uploadDate.getTime());
 	});
-	/*
+	*/
 }
 
 module.exports = function (app, serverNsp) {
@@ -352,44 +442,11 @@ module.exports = function (app, serverNsp) {
   		console.log('ControlSocket [START]', message);
   		deployServer(message.exec, message.map, function (err, exec) {
   			if (err) return socket.emit('err', err);
-  			current = {map: message.map, exec: message.exec};
+  			//current = {map: message.map, exec: message.exec};
   			launchServer(exec);
   		});
   	
   	}
-
-  	/*
-  		Model.readStreamFromId(message.map, function (err, readStream, metadata) {
-  			if (err) {
-  				console.log(err);
-  				socket.emit('err', err);
-  				return;
-  			}
-  			console.log(metadata);
-  			var writeStream = fs.createWriteStream('./temp/' + Date.now());
-  			readStream.pipe(writeStream);
-  			writeStream.on('close', function () {
-  				console.log('file writted');
-  			});
-  		
-  		});
-    	*/
-    /*
-    	if (isUp === false) {
-    	  process.send({
-    	    command: 'start', 
-    	    config: {
-    	      procName: 'java', 
-    	      procArgs: ['-jar', 'minecraft_server.jar', 'nogui'], 
-    	      procOptions: {
-    	        cwd: './game'
-    	      }
-    	    }
-    	  });
-    	} else {
-    	  this.emit('err', 'Server already running');
-    	}
-  	*/
   }
 
   function stop () {
