@@ -4,7 +4,6 @@ var async = require('async');
 var util = require('./server.util.js');
 var path = require('path');
 var rimraf = require('rimraf');
-
 var current = {map: null, exec: null};
 var isUp = false;
 var lastCode = null;
@@ -23,8 +22,16 @@ function deployServer (execId, mapId, callback) {
     },
     function (matches, sMapRemoved, wCb) {
       Model.extractFile(execId, function (err, doc) {
-      	current.exec = doc;
-      	wCb(err, matches, sMapRemoved);
+      	var levelName = matches.sort(function (a, b) {
+      		return a.length - b.length;
+      	});
+      	console.log('levelName', levelName);
+      	util.setServerProperty('./temp/', 'level-name', levelName[0], function (err) {
+      		fs.writeFile('./temp/eula.txt', 'eula=true', function () {
+      			current.exec = doc;
+      			wCb(err, matches, sMapRemoved);
+      		});
+      	});
       });
     },
     function (matches, sMapRemoved, wCb) {
@@ -116,6 +123,7 @@ function sanitizeExec (exclude, thingsToRemove, callback) {
     var _isExec = function (file, fCb) {
       var extension = file.slice(file.lastIndexOf('.'));
       if (extension === '.jar') {
+        console.log('potential jar here!', file);
         util.getFileType(path.join(root, file), function (err, type) {
           if (type !== null && type.ext === 'zip') {
             fCb(true);
@@ -123,40 +131,45 @@ function sanitizeExec (exclude, thingsToRemove, callback) {
             fCb(false);
           }
         });
+      } else {
+      	fCb(false);
+      }
+    };
+    var _priorize = function (pCb) {
+      var _pickLastATime = function (execs, lCb) {
+        var elements = [];
+        async.each(execs,
+          function (element, eCb) {
+            fs.stat(path.join(root, element), function (err, stats) {
+              elements.push({element: element, atime: stats.atime});
+              eCb(err);
+            });
+          },
+          function (err) {
+            elements.sort(function (a, b) {
+              return b.atime.getTime() - a.atime.getTime();
+            });
+            lCb(err, elements[0].element);
+          });
+      };
+      execs = execs.filter(function (el) {
+        return el.indexOf('server') !== -1 || 
+               el.indexOf('spigot') !== -1 || 
+               el.indexOf('bukkit') !== -1 ||
+               el.indexOf('minecraft') !== -1;
+      });
+      if (execs.length > 1) {
+        _pickLastATime(execs, function (err, exec) {
+          pCb(err, exec);
+        });
+      } else {
+        pCb(null, execs[0]);
       }
     };
     async.filter(files, _isExec, function (execs) {
-      var _priorize = function (pCb) {
-        var _pickLastATime = function (execs, lCb) {
-          var elements = [];
-          async.each(execs,
-            function (element, eCb) {
-              fs.stat(path.join(root, element), function (err, stats) {
-                elements.push({element: element, atime: stats.atime});
-                eCb(err);
-              });
-            },
-            function (err) {
-              elements.sort(function (a, b) {
-                return b.atime.getTime() - a.atime.getTime();
-              });
-              lCb(err, elements[0].element);
-            });
-        };
-        execs = execs.filter(function (el) {
-          return el.indexOf('server') !== -1 || 
-                 el.indexOf('spigot') !== -1 || 
-                 el.indexOf('bukkit') !== -1 ||
-                 el.indexOf('minecraft') !== -1;
-        });
-        if (execs.length > 1) {
-          _pickLastATime(execs, function (err, exec) {
-            pCb(err, exec);
-          });
-        } else {
-          pCb(null, execs[0]);
-        }
-      };
+      console.log('files!!', execs);
+     
+      console.log('execs!!', execs);
       if (execs.length > 1) {
         _priorize(function (err, exec) {
           callback(err, exec);
@@ -222,18 +235,21 @@ function sanitizeExec (exclude, thingsToRemove, callback) {
       var removedThings = [];
       async.each(thingsToRemove,
         function (thingToRemove, eCb) {
-          console.log('things to remove', thingsToRemove)
+          console.log('things to remove', thingsToRemove);
           rimraf(path.join(root, thingToRemove), function (err) {
             removedThings.push(thingToRemove);
             eCb(err);
           });
         },
         function (err) {
+          console.log(err);
           wCb(err, exclude, removedThings);
         });
     },
     function (exclude, removedThings, wCb) {
-      _getDirs(root, exclude, wCb);
+      _getDirs(root, exclude, function (err, filteredDirs, files) {
+      	wCb(err, filteredDirs, files);
+      });
     },
     function (filteredDirs, files, wCb) {
       async.filter(filteredDirs, _isMapDir, function (execMapDirs) {
@@ -255,7 +271,6 @@ function sanitizeExec (exclude, thingsToRemove, callback) {
     },
     function (sExecRemoved, files, wCb) {
       _getExec(files, function (err, exec) {
-        console.log('exec', exec);
         wCb(err, exec, files);
       });
     }
@@ -298,7 +313,6 @@ function bundleServer (cb) {
 		var tarGz = filename.indexOf(".tar.gz");
 		var zip = filename.indexOf(".zip");
 		var tarLz4 = filename.indexOf(".tar.lz4");
-		//var archiverFormat = (type === 'map') ? '.zip' : '.tar'; 
 		if (tarGz !== -1) {
 			filename = filename.substring(0, tarGz).concat('.tar.lz4');
 		} else if (zip !== -1) {
@@ -374,7 +388,7 @@ function bundleServer (cb) {
 	});
 	*/
 }
-
+//todo -> parser server.properties
 module.exports = function (app, serverNsp) {
   process.on('message', function (message) {
     switch (message.command) {

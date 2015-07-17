@@ -86,7 +86,7 @@ function _extractFile (id, cb) {
   _getReadStreamFromId(id, function (err, readStream, file) {
     var writeStream = _getWriteStream(readStream, file.metadata.ext);
     var ev = _getEndEvent(file.metadata.ext);
-    writeStream.on(ev, function () {
+    writeStream.once(ev, function () {
       console.log('finished', id);
       cb(err, file);
     });
