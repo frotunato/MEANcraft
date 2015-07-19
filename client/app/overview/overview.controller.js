@@ -120,6 +120,10 @@ angular.module('MEANcraftApp.overview')
       //console.log(message);
     });
     
+    ServerSocket.on('progress', function (message) {
+      console.log(message);
+    });
+
     this.exec = {
       list: [],
       selected: {_id: null}

@@ -9,10 +9,10 @@ var isUp = false;
 var lastCode = null;
 var lock = false;
 
-function deployServer (execId, mapId, callback) {
+function deployServer (execId, mapId, io, callback) {
   async.waterfall([
     function (wCb) {
-      Model.extractFile(mapId, wCb);
+      Model.extractFile(mapId, io, wCb);
     },
     function (doc, wCb) {
     	sanitizeMap(function (err, matches, sMapRemoved) {
@@ -21,7 +21,7 @@ function deployServer (execId, mapId, callback) {
     	});
     },
     function (matches, sMapRemoved, wCb) {
-      Model.extractFile(execId, function (err, doc) {
+      Model.extractFile(execId, io, function (err, doc) {
       	var levelName = matches.sort(function (a, b) {
       		return a.length - b.length;
       	});
@@ -388,7 +388,7 @@ function bundleServer (cb) {
 	});
 	*/
 }
-//todo -> parser server.properties
+
 module.exports = function (app, serverNsp) {
   process.on('message', function (message) {
     switch (message.command) {
@@ -398,7 +398,7 @@ module.exports = function (app, serverNsp) {
     		serverNsp.emit('status', {status: isUp, code: lastCode});
     		break;
     	case 'stdout':
-    		console.log('emitting stdout');
+    		//console.log('emitting stdout');
     		serverNsp.emit('chat', message.stdout);
     		break;
     }
@@ -415,7 +415,7 @@ module.exports = function (app, serverNsp) {
   	} else {
   		lock = true;
   		console.log('ControlSocket [START]', message);
-  		deployServer(message.exec, message.map, function (err, exec) {
+  		deployServer(message.exec, message.map, serverNsp, function (err, exec) {
   			lock = false;
   			if (err) return socket.emit('err', err);
   			launchServer(exec);

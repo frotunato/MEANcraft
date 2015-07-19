@@ -11,7 +11,7 @@ var tar = require('tar-fs');
 var zlib = require('zlib');
 var lz4 = require('lz4');
 var unzip = require('unzip2');
-
+var progress = require('progress-stream');
 
 function insert (readStream, data, cb) {
   var writeStream = gridfs.createWriteStream(data);
@@ -55,11 +55,10 @@ function _getReadStreamFromId (id, cb) {
   });
 }
 
-function _extractFile (id, cb) {
+function _extractFile (id, io, cb) {
   var _getWriteStream = function (readStream, ext) {
     var decoderStream = null;
     var writeStream = null;
-    var eventToListen = null;
     if (ext === 'gz') {
       decoderStream = zlib.Gunzip();
       writeStream = tar.extract('./temp/');
@@ -84,8 +83,12 @@ function _extractFile (id, cb) {
     return res;
   };
   _getReadStreamFromId(id, function (err, readStream, file) {
-    var writeStream = _getWriteStream(readStream, file.metadata.ext);
+    var str = progress({length: file.length, time: 75});
+    var writeStream = _getWriteStream(readStream.pipe(str), file.metadata.ext);
     var ev = _getEndEvent(file.metadata.ext);
+    str.on('progress', function (progress) {
+      io.emit('progress', {reason: 'Decompressing ' + file.filename, progress: progress});
+    });
     writeStream.once(ev, function () {
       console.log('finished', id);
       cb(err, file);

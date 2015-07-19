@@ -7,11 +7,9 @@
     "url": "http://github.com/frotunato/MEANcraft.git"
   },
   "dependencies": {
-    "archiver": "latest",
     "async": "latest",
     "body-parser": "latest",
     "compression": "latest",
-    "errorhandler": "latest",
     "express": "latest",
     "express-jwt": "latest",
     "gridfs-stream": "latest",
@@ -34,6 +32,7 @@
     "file-type": "latest",
     "ls-archive": "latest",
     "unzip2": "latest",
-    "gunzip-maybe": "latest"
+    "progress-stream": "latest",
+    "du": "latest"
   }
 }
