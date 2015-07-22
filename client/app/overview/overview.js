@@ -1,1 +1,1 @@
-angular.module('MEANcraftApp.overview', []);
+angular.module('MEANcraftApp.overview', ['luegg.directives']);

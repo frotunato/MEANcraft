@@ -1,21 +1,24 @@
 h4 Overview
-//button(ng-click="create()") Create!!
-//button(ng-click="drop()") Drop It!!
-//input(type="file" name="file" onchange="angular.element(this).scope().uploadFile(this.files)")
-//div(class="container")
-//  div(class="ten columns") ten
-//    div asdsadsadasdasdsadsadasdasdsadsadasdasdsadsadasdasdsadsadasd
-//
-//  div(class="two columns") two
 
 div(id="controlBox" ng-controller="overviewServerCtrl as server")
+  div(class="container" id="chatContainer")
+    div(class="row" scroll-glue style="overflow-y: auto; background-color: ghostwhite; height: 400px;")
+      ul(class="eleven columns" style="min-height: 100%;")
+        li(ng-repeat="line in server.chat.pool track by $index" class="chat-line") {{line}}
+    div(class="row")
+      input(type="text" ng-model="server.chat.message" style="width: 98%;" ng-keyup="$event.keyCode == 13 ? server.chat.sendMsg() : null") 
   button(ng-click="server.start()") Start
   button(ng-click="server.stop()") Stop
-  select(ng-model="server.map.selected" ng-options="map as map.metadata.name for map in server.map.list track by map._id")
+  select(ng-model="server.map.selected" ng-options="map as (map.uploadDate | date:'dd/MM/yyyy HH:mm:ss') group by map.metadata.name for map in server.map.list track by map._id")
     option(value="") Select a map
-  select(ng-model="server.exec.selected" ng-options="exec as exec.metadata.name for exec in server.exec.list track by exec._id")
+  select(ng-model="server.exec.selected" ng-options="exec as (exec.uploadDate | date:'dd/MM/yyyy HH:mm:ss') group by exec.metadata.name for exec in server.exec.list track by exec._id")
     option(value="") Select an executable
-
+  pre 
+    b Task: 
+    {{server.currentTask.name}} ({{server.currentTask.percentage}}%)
+  pre
+    b  Status:
+    {{server.currentStatus}}
 h5 Upload file
 div(id="uploadBox" ng-controller="uploadServerCtrl as upload")
   span(id="uploadArea")

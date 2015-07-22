@@ -1,13 +1,18 @@
+var EventEmitter = require('events').EventEmitter;
 var Model = require('./grid.model');
 var fs = require('fs');
 var async = require('async');
 var util = require('./server.util.js');
 var path = require('path');
 var rimraf = require('rimraf');
-var current = {map: null, exec: null};
+
+var _controlNsp = null;
+var gameServer = new EventEmitter();
+var current = {map: null, exec: null, schedule: null};
 var isUp = false;
 var lastCode = null;
 var lock = false;
+var schedule = require('node-schedule');
 
 function deployServer (execId, mapId, io, callback) {
   async.waterfall([
@@ -17,6 +22,7 @@ function deployServer (execId, mapId, io, callback) {
     function (doc, wCb) {
     	sanitizeMap(function (err, matches, sMapRemoved) {
     		current.map = doc;
+    		io.emit('chat', '[MEANcraft] Sanitized map');
     		wCb(err, matches, sMapRemoved);
     	});
     },
@@ -36,11 +42,13 @@ function deployServer (execId, mapId, io, callback) {
     },
     function (matches, sMapRemoved, wCb) {
     	sanitizeExec(matches, sMapRemoved, function (err, exec) {
+        io.emit('chat', '[MEANcraft] Sanitized exec files');
         wCb(err, exec);
      });
+
     },
   ], function (err, exec) {
-    console.log('current after deploy', current);
+    //console.log('current after deploy', current);
     callback(err, exec);
   });
 }
@@ -123,7 +131,7 @@ function sanitizeExec (exclude, thingsToRemove, callback) {
     var _isExec = function (file, fCb) {
       var extension = file.slice(file.lastIndexOf('.'));
       if (extension === '.jar') {
-        console.log('potential jar here!', file);
+        //console.log('potential jar here!', file);
         util.getFileType(path.join(root, file), function (err, type) {
           if (type !== null && type.ext === 'zip') {
             fCb(true);
@@ -167,9 +175,6 @@ function sanitizeExec (exclude, thingsToRemove, callback) {
       }
     };
     async.filter(files, _isExec, function (execs) {
-      console.log('files!!', execs);
-     
-      console.log('execs!!', execs);
       if (execs.length > 1) {
         _priorize(function (err, exec) {
           callback(err, exec);
@@ -235,7 +240,7 @@ function sanitizeExec (exclude, thingsToRemove, callback) {
       var removedThings = [];
       async.each(thingsToRemove,
         function (thingToRemove, eCb) {
-          console.log('things to remove', thingsToRemove);
+          //console.log('things to remove', thingsToRemove);
           rimraf(path.join(root, thingToRemove), function (err) {
             removedThings.push(thingToRemove);
             eCb(err);
@@ -281,20 +286,16 @@ function sanitizeExec (exclude, thingsToRemove, callback) {
 
 function launchServer (exec, opts, callback) {
 	console.log('launchServer with', exec, opts);
-	//if (isUp === false) {
-	  process.send({
-	    command: 'start', 
-	    config: {
-	      procName: 'java', 
-	      procArgs: ['-jar', exec, 'nogui'], 
-	      procOptions: {
-	        cwd: './temp'
-	      }
+	process.send({
+	  command: 'start', 
+	  body: {
+	    procName: 'java', 
+	    procArgs: ['-jar', exec, 'nogui'], 
+	    procOptions: {
+	      cwd: './temp'
 	    }
-	  });
-	//} else {
-	  //this.emit('err', 'Server already running');
-	//}
+	  }
+	});
 }
 
 function bundleServer (cb) {
@@ -367,11 +368,13 @@ function bundleServer (cb) {
 				}
 			],
 				function (err) {
+					/*
 					rimraf('./temp', function () {
 						fs.mkdir('./temp', function () {
 							wCb(err);
 						});
 					});
+					*/
 					wCb(err);
 			});
 		}
@@ -389,21 +392,69 @@ function bundleServer (cb) {
 	*/
 }
 
-module.exports = function (app, serverNsp) {
-  process.on('message', function (message) {
-    switch (message.command) {
-    	case 'status':
-    		isUp = message.status;
-    		lastCode = message.code;
-    		serverNsp.emit('status', {status: isUp, code: lastCode});
-    		break;
-    	case 'stdout':
-    		//console.log('emitting stdout');
-    		serverNsp.emit('chat', message.stdout);
-    		break;
-    }
-  });
+process.on('message', function (message) {
+  gameServer.emit(message.command, message.body);
+});
 
+process.send({command: 'status'});
+
+gameServer.on('stdout', function (body) {
+  if (isUp === false && /^\[[0-9]{2}:[0-9]{2}:[0-9]{2} INFO]: Done/.test(body)) {
+    isUp = true;
+    lock = false;
+    _controlNsp.emit('status', {status: 'Online'});
+    if (current.schedule) {
+      var backupSchedule = schedule.scheduleJob();
+      _controlNsp.emit('chat', '[MEANcraft] Scheduled backups are enabled');
+    } else {
+      _controlNsp.emit('chat', '[MEANcraft] Warning: scheduled backups are disabled');
+    }
+  }
+  _controlNsp.emit('chat', body);
+});
+
+gameServer.on('status', function (message) {
+  //isUp = message.status;//var a = ';[15:41:34 INFO]: '
+  //lastCode = message.body;
+  _controlNsp.emit('status', {status: isUp, code: lastCode});
+});
+
+
+module.exports = function (app, serverNsp) {
+  _controlNsp = serverNsp;
+    /*
+      switch (message.command) {
+        case 'status':
+      		//gameServer.emit(message.command, message.body);
+          //isUp = message.status;var a = ';[15:41:34 INFO]: '
+      		//lastCode = message.code;
+      		//serverNsp.emit('status', {status: isUp, code: lastCode});
+      		break;
+      		
+      	case 'stdout':
+      		gameServer.emit(message.command, message.body);
+          //message.stdout = message.stdout.replace(/(\r\n|\n|\r)/gm,"");
+      		//console.log(message.stdout);
+      		if (isUp === false && /^\[[0-9]{2}:[0-9]{2}:[0-9]{2} INFO]: Done/.test(message.stdout)) {
+      			isUp = true;
+      			serverNsp.emit('status', {status: 'Online'});
+      			if (current.schedule) {
+              var backupSchedule = schedule.scheduleJob()
+              serverNsp.emit('chat', 'Scheduled backups');
+            }
+      			console.log('now is up');
+      		}
+      		//} else if (isUp === false && /^\[[0-9]{2}:[0-9]{2}:[0-9]{2} INFO]: /.test(message.stdout)) {
+      		//	var chunk = message.stdout.substring(17);
+      		//	var res = chunk.match(/([0-9]{2}%)/);
+      		//	var percentage = (res === null) ? 100 : res[0];
+      		//	var reason = (res === null) ? chunk : chunk.substring(0, res[1]);
+      		//	serverNsp.emit('progress', {reason: reason, percentage: percentage});
+      		//}
+      		serverNsp.emit('chat', message.stdout + '');
+      		break;
+      }
+    */
   function start (message) {
   	var socket = this;
   	if (message.map === null && message.exec === null) {
@@ -417,8 +468,14 @@ module.exports = function (app, serverNsp) {
   		console.log('ControlSocket [START]', message);
   		deployServer(message.exec, message.map, serverNsp, function (err, exec) {
   			lock = false;
-  			if (err) return socket.emit('err', err);
+  			//var test = schedule.scheduleJob('* * * * *', function () {
+        //  bundleServer(function () {
+        //    console.log('server bundled!!!!!!');
+        //  });
+        //});
+        if (err) return socket.emit('err', err);
   			launchServer(exec);
+  			serverNsp.emit('chat', '[MEANcraft] Bootstrapping server');
   		});
   	}
   }
@@ -427,26 +484,21 @@ module.exports = function (app, serverNsp) {
   	if (!lock) {
   		lock = true;
   		bundleServer(function () {
-  			lock = false;
+  			current = {
+          map: null,
+          exec: null,
+          schedule: null
+        };
+        lock = false;
   		});
   	} else {
-  		this.emit('err', 'The server is busy stopping...');
+  		this.emit('err', 'The server is busy...');
   	}
-  	
-  /*
-    if (isUp === true) {
-      process.send({
-        command: 'stop'
-      });
-    } else {
-      this.emit('err', 'Server is already stopped');
-    }
-  */
-  
   }
 
   function getStatus () {
-    return {status: isUp, code: lastCode};
+    var status = (isUp) ? 'Online' : 'Offline';
+    return {status: status, code: lastCode};
   }
 
   function status () {
@@ -460,10 +512,17 @@ module.exports = function (app, serverNsp) {
     });
   }
 
+  function chat (message) {
+  	if (!message || isUp === false) return;
+  	console.log('ControlSocket [CHAT]', message);
+  	process.send({command: 'stdin', body: message});
+  }
+
   return {
     start: start,
     stop: stop,
     status: status,
-    list: list
+    list: list,
+    chat: chat
   };
 };

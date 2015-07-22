@@ -54,9 +54,7 @@ angular.module('MEANcraftApp.overview')
             var chunkSize = 2000000; //parseInt(scope.upload.chunkSize);
             var offset = targetFile.offset;
             var alphaTime = Date.now();
-            
             var fileReader = new FileReader();
-            //headerReader.onload = fileHeader;
             var blob = {};
             var amount = 0;
             var block = function () {
@@ -94,4 +92,23 @@ angular.module('MEANcraftApp.overview')
         });
       }
     };
+  })
+
+  .directive("scrollToBottomWhen", function ($timeout) {
+    return {
+      link: function (scope, element, attrs) {
+      
+        scope.$on(attrs.scrollToBottomWhen, function () {
+          $timeout(function () {
+            //var height = angular.element(element[0]).scrollTop;
+            var height = element[0].scrollTop;
+            //console.log(element);
+            element[0].scrollTop = height;
+            console.log('scrolling', height);
+            //window.alert('yo');
+          });
+        });
+      }
+    };
+
   });

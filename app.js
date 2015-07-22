@@ -1,54 +1,53 @@
 var childProcess = require('child_process');
-var	spawn = childProcess.spawn;
-var	webServer = null;
-var	gameServer = null;
+var spawn = childProcess.spawn;
+var EventEmitter = require('events').EventEmitter;
 
-function startWebServer () {
-	webServer = childProcess.fork('./server/server.js');
-	
-	webServer.on('exit', function (code, signal) {
-		console.log('SERVER DIED WITH CODE', code, 'AND SIGNAL', signal, 'RESTARTING...');
-		startWebServer();
-	});
+var webServer = childProcess.fork('./server/server.js');
+var gameServer = null;
 
-	webServer.on('message', function (message) {
-		switch (message.command) {
-			case 'start':
-				message.config = message.config || {};
-				startGameServer(message.config);
-				webServer.send({command: 'status', status: true});
-				gameServer.stdout.on('data', function (data) {
-					webServer.send({command: 'stdout', stdout: data + ''});
-				});
-				break;
-			case 'status':
-				var value = gameServer ? true : false;
-				console.log('status server', value);
-				webServer.send({command: 'status', status: value});
-				break;
-			case 'stop':
-				if (message.delay) {
-				} else {
-					if (gameServer) {
-						gameServer.stdin.write('stop' + '\r');
-					}
-				}
-				break;
-		}
-	});
-
-
+function startGameServer (body) {
+  if (gameServer) return;
+  gameServer = spawn(body.procName, body.procArgs, body.procOptions);
+  gameServer.stdout.on('data', function (data) {
+    webServer.emit('stdout', data + '');
+  });
+  gameServer.on('exit', function (code, signal) {
+    console.log('Gameserver died', code, signal);
+    webServer.emit('status', {code: code, signal: signal});
+    gameServer = null;
+  });
 }
 
-function startGameServer (config) {
-	if (!gameServer) {
-		gameServer = spawn(config.procName, config.procArgs, config.procOptions);
-		gameServer.on('exit', function (code) {
-			gameServer = null;
-			webServer.send({status: false, code: code});
-			console.log('GameServer died', code);		
-		});
-	}
-}
+webServer.on('message', function (message) {
+  webServer.emit(message.command, message.body);
+});
 
-startWebServer();
+webServer.on('exit', function (code, signal) {
+  console.log('Webserver died, retry in 10 seconds...');
+  setTimeout(function () {
+    webServer = childProcess.fork('./server/server.js');
+  }, 10000);
+});
+
+webServer.on('status', function (body) {
+  var res = (gameServer) ? true : false;
+  webServer.send({command: 'status', body: res});
+});
+
+webServer.on('stdin', function (body) {
+  if (!gameServer) return;
+  gameServer.stdin.write(body);
+});
+
+webServer.on('stdout', function (body) {
+  webServer.send({command: 'stdout', body: body});
+});
+
+webServer.on('start', function (body) {
+  startGameServer(body);
+});
+
+webServer.on('stop', function () {
+  if (!gameServer) return;
+  gameServer.stdin.write('stop' + '\r');
+});

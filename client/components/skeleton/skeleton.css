@@ -379,6 +379,11 @@ hr {
   border-width: 0;
   border-top: 1px solid #E1E1E1; }
 
+.chat-line {
+  margin-top: 1rem;
+  font-family: monospace;
+  font-weight: 800;
+  font-size: small;}
 
 /* Clearing
 –––––––––––––––––––––––––––––––––––––––––––––––––– */

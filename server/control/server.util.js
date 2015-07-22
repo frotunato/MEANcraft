@@ -97,7 +97,6 @@ function getServerProperties (filePath, callback) {
 
 function setServerProperty (filePath, prop, value, callback) {
   fs.readFile(path.join(filePath, 'server.properties'), {encoding: 'utf8'}, function (err, data) {
-    console.log(data);
     if (err) {
       callback(err);
       return;
@@ -105,7 +104,6 @@ function setServerProperty (filePath, prop, value, callback) {
     var index = data.indexOf(prop);
     if (index === -1) {
       data = data.concat('\n' + prop + '=' + value);
-      console.log(data);
     } else {
       var offset = index + prop.length + 1;
       var endLine = data.substring(offset).indexOf('\n') - 1 + offset;

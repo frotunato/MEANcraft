@@ -83,11 +83,11 @@ function _extractFile (id, io, cb) {
     return res;
   };
   _getReadStreamFromId(id, function (err, readStream, file) {
-    var str = progress({length: file.length, time: 75});
+    var str = progress({length: file.length, time: 500});
     var writeStream = _getWriteStream(readStream.pipe(str), file.metadata.ext);
     var ev = _getEndEvent(file.metadata.ext);
     str.on('progress', function (progress) {
-      io.emit('progress', {reason: 'Decompressing ' + file.filename, progress: progress});
+      io.emit('chat', '[MEANcraft] Decompressing ' + file.metadata.type + ' ' + Math.ceil(progress.percentage) + '%');
     });
     writeStream.once(ev, function () {
       console.log('finished', id);

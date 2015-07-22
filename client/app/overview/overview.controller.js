@@ -101,15 +101,36 @@ angular.module('MEANcraftApp.overview')
 
   .controller('overviewServerCtrl', function ($scope, ServerSocket)  {
     var self = this;
-    
-    ServerSocket.emit('list');
+    this.chat = {
+      pool: [],
+      prefix: '',
+      message: '',
+      sendMsg: function () {
+        if (!this.message) return;
+        ServerSocket.emit('chat', this.message);
+        this.message = '';
+      }
+    };
+    this.currentTask = {
+      name: 'None', 
+      percentage: 0
+    };
 
+
+    this.currentStatus = 'Unknown';
+    ServerSocket.emit('list');
+    ServerSocket.emit('status');
+    
     ServerSocket.on('err', function (message) {
-      window.alert(message);
+      window.alert(JSON.stringify(message));
     });
 
     ServerSocket.on('chat', function (message) {
-      console.log(message);
+      $scope.$broadcast("chat");
+      if (self.chat.pool.length > 100) {
+        self.chat.pool.splice(0, 1);
+      }
+      self.chat.pool.push(message);
     });
 
     ServerSocket.on('list', function (message) {
@@ -120,8 +141,13 @@ angular.module('MEANcraftApp.overview')
       //console.log(message);
     });
     
+    ServerSocket.on('status', function (message) {
+      self.currentStatus = message.status;
+    });
+
     ServerSocket.on('progress', function (message) {
-      console.log(message);
+      self.currentTask.name = message.reason;
+      self.currentTask.percentage = Math.ceil(message.progress.percentage);
     });
 
     this.exec = {

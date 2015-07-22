@@ -33,6 +33,7 @@
     "ls-archive": "latest",
     "unzip2": "latest",
     "progress-stream": "latest",
-    "du": "latest"
+    "du": "latest",
+    "node-schedule": "latest"
   }
 }
