@@ -4,9 +4,9 @@ module.exports = function (app, serverNsp) {
 	function route (socket) {
 		socket.on('start', controller.start.bind(socket));
 		socket.on('stop', controller.stop.bind(socket));
-		socket.on('status', controller.status.bind(socket));
+		socket.on('info', controller.info.bind(socket));
 		socket.on('list', controller.list.bind(socket));
-		socket.on('chat', controller.chat.bind(socket));
+		socket.on('stdin', controller.chat.bind(socket));
 	}
 
 	return {

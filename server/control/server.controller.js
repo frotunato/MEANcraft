@@ -5,14 +5,17 @@ var async = require('async');
 var util = require('./server.util.js');
 var path = require('path');
 var rimraf = require('rimraf');
-
-var _controlNsp = null;
-var gameServer = new EventEmitter();
-var current = {map: null, exec: null, schedule: null};
-var isUp = false;
-var lastCode = null;
-var lock = false;
 var schedule = require('node-schedule');
+
+var gameServer = new EventEmitter();
+var _controlNsp = null;
+var currentServer = {
+  map: null, 
+  exec: null, 
+  schedule: null,
+  status: false,
+  lock: false
+};
 
 function deployServer (execId, mapId, io, callback) {
   async.waterfall([
@@ -21,8 +24,8 @@ function deployServer (execId, mapId, io, callback) {
     },
     function (doc, wCb) {
     	sanitizeMap(function (err, matches, sMapRemoved) {
-    		current.map = doc;
-    		io.emit('chat', '[MEANcraft] Sanitized map');
+    		currentServer.map = doc;
+    		io.emit('stdin', '[MEANcraft] Sanitized map');
     		wCb(err, matches, sMapRemoved);
     	});
     },
@@ -34,7 +37,7 @@ function deployServer (execId, mapId, io, callback) {
       	console.log('levelName', levelName);
       	util.setServerProperty('./temp/', 'level-name', levelName[0], function (err) {
       		fs.writeFile('./temp/eula.txt', 'eula=true', function () {
-      			current.exec = doc;
+      			currentServer.exec = doc;
       			wCb(err, matches, sMapRemoved);
       		});
       	});
@@ -42,13 +45,13 @@ function deployServer (execId, mapId, io, callback) {
     },
     function (matches, sMapRemoved, wCb) {
     	sanitizeExec(matches, sMapRemoved, function (err, exec) {
-        io.emit('chat', '[MEANcraft] Sanitized exec files');
+        io.emit('stdin', '[MEANcraft] Sanitized exec files');
         wCb(err, exec);
      });
 
     },
   ], function (err, exec) {
-    //console.log('current after deploy', current);
+    //console.log('currentServer after deploy', currentServer);
     callback(err, exec);
   });
 }
@@ -332,14 +335,14 @@ function bundleServer (cb) {
 			async.parallel([
 				function (pCb) {
 					_getWriteStream(mapDirs, function (writeStream) {
-						var fixedFilename = _fixFilename(current.map.filename);
+						var fixedFilename = _fixFilename(currentServer.map.filename);
 					  var data = {
 					  	filename: fixedFilename,
 					  	metadata: {
-					  		name: current.map.metadata.name,
+					  		name: currentServer.map.metadata.name,
 					  		type: 'map',
 					  		ext: 'lz4',
-					  		parent: current.map._id
+					  		parent: currentServer.map._id
 					  	}
 					  };
 					  Model.insert(writeStream, data, function () {
@@ -350,14 +353,14 @@ function bundleServer (cb) {
 				},
 				function (pCb) {
 					_getWriteStream(files, function (writeStream) {
-						var fixedFilename = _fixFilename(current.exec.filename);
+						var fixedFilename = _fixFilename(currentServer.exec.filename);
 						var data = {
 							filename: fixedFilename,
 							metadata: {
-								name: current.exec.metadata.name,
+								name: currentServer.exec.metadata.name,
 								type: 'exec',
 								ext: 'lz4',
-								parent: current.exec._id
+								parent: currentServer.exec._id
 							}
 						};
 						Model.insert(writeStream, data, function () {
@@ -384,12 +387,39 @@ function bundleServer (cb) {
 		});
 	/*
 	var threshold = 1200000; //20 minutes
-	Model.getFileData(current.map, function (err, doc) {
+	Model.getFileData(currentServer.map, function (err, doc) {
 		console.log(err, typeof doc);
 		var d = new Date(doc.uploadDate);
 		console.log(Date.now() - doc.uploadDate.getTime());
 	});
 	*/
+}
+
+function addSchedule (config, fn) {
+  if (!config) return;
+  var num = 0;
+  var retry = function () {
+      if (num < 2) {
+        num ++;
+        console.log('ControlSocket [ADD SCHEDULE]', 'server is currently locked, retriying in 30 seconds (' + num + '/2)');
+        setTimeout(function () {
+          if (currentServer.lock) {
+            retry();
+          } else {
+            fn();
+          }
+        }, 30000);
+      } else {
+        console.log('ControlSocket [ADD SCHEDULE]', 'server locked for a long period of time, aborting schedule...');
+      }
+  };
+  schedule.scheduleJob(config, function () {
+    if (currentServer.lock) {
+      retry();
+    } else {
+      fn();
+    }
+  });
 }
 
 process.on('message', function (message) {
@@ -399,26 +429,39 @@ process.on('message', function (message) {
 process.send({command: 'status'});
 
 gameServer.on('stdout', function (body) {
-  if (isUp === false && /^\[[0-9]{2}:[0-9]{2}:[0-9]{2} INFO]: Done/.test(body)) {
-    isUp = true;
-    lock = false;
-    _controlNsp.emit('status', {status: 'Online'});
-    if (current.schedule) {
-      var backupSchedule = schedule.scheduleJob();
-      _controlNsp.emit('chat', '[MEANcraft] Scheduled backups are enabled');
-    } else {
-      _controlNsp.emit('chat', '[MEANcraft] Warning: scheduled backups are disabled');
-    }
+  if (currentServer.status === false && /^\[[0-9]{2}:[0-9]{2}:[0-9]{2} INFO]: Done/.test(body)) {
+    gameServer.emit('start');
   }
-  _controlNsp.emit('chat', body);
+  _controlNsp.emit('stdin', body);
 });
 
-gameServer.on('status', function (message) {
-  //isUp = message.status;//var a = ';[15:41:34 INFO]: '
-  //lastCode = message.body;
-  _controlNsp.emit('status', {status: isUp, code: lastCode});
+gameServer.on('start', function () {
+  currentServer.lock = false;
+  currentServer.status = true;
+  _controlNsp.emit('info', currentServer);
+  if (currentServer.schedule) {
+    _controlNsp.emit('stdin', '[MEANcraft] Scheduled backups are enabled');
+    var backupSchedule = schedule.scheduleJob('*/' + currentServer.schedule + ' * * * *', function () {
+      var alphaTime = Date.now();
+      _controlNsp.emit('stdin', '[MEANcraft] Backup is on the way...');
+      currentServer.lock = true;
+      bundleServer(function () {
+        currentServer.lock = false;
+        _controlNsp.emit('stdin', '[MEANcraft] Backup done (' + Math.ceil((Date.now() - alphaTime) / 1000) + ' s)');
+      });
+    });
+  } else {
+    _controlNsp.emit('stdin', '[MEANcraft] Warning: scheduled backups are disabled');
+  }
 });
 
+gameServer.on('stop', function (body) {
+  currentServer.status = false;
+  _controlNsp.emit('info', {
+    status: currentServer.status,
+    lock: currentServer.lock
+  });
+});
 
 module.exports = function (app, serverNsp) {
   _controlNsp = serverNsp;
@@ -426,83 +469,73 @@ module.exports = function (app, serverNsp) {
       switch (message.command) {
         case 'status':
       		//gameServer.emit(message.command, message.body);
-          //isUp = message.status;var a = ';[15:41:34 INFO]: '
+          //currentServer.status = message.status;var a = ';[15:41:34 INFO]: '
       		//lastCode = message.code;
-      		//serverNsp.emit('status', {status: isUp, code: lastCode});
+      		//serverNsp.emit('status', {status: currentServer.status, code: lastCode});
       		break;
       		
       	case 'stdout':
       		gameServer.emit(message.command, message.body);
           //message.stdout = message.stdout.replace(/(\r\n|\n|\r)/gm,"");
       		//console.log(message.stdout);
-      		if (isUp === false && /^\[[0-9]{2}:[0-9]{2}:[0-9]{2} INFO]: Done/.test(message.stdout)) {
-      			isUp = true;
+      		if (currentServer.status === false && /^\[[0-9]{2}:[0-9]{2}:[0-9]{2} INFO]: Done/.test(message.stdout)) {
+      			currentServer.status = true;
       			serverNsp.emit('status', {status: 'Online'});
-      			if (current.schedule) {
+      			if (currentServer.schedule) {
               var backupSchedule = schedule.scheduleJob()
-              serverNsp.emit('chat', 'Scheduled backups');
+              serverNsp.emit('stdin', 'Scheduled backups');
             }
       			console.log('now is up');
       		}
-      		//} else if (isUp === false && /^\[[0-9]{2}:[0-9]{2}:[0-9]{2} INFO]: /.test(message.stdout)) {
+      		//} else if (currentServer.status === false && /^\[[0-9]{2}:[0-9]{2}:[0-9]{2} INFO]: /.test(message.stdout)) {
       		//	var chunk = message.stdout.substring(17);
       		//	var res = chunk.match(/([0-9]{2}%)/);
       		//	var percentage = (res === null) ? 100 : res[0];
       		//	var reason = (res === null) ? chunk : chunk.substring(0, res[1]);
       		//	serverNsp.emit('progress', {reason: reason, percentage: percentage});
       		//}
-      		serverNsp.emit('chat', message.stdout + '');
+      		serverNsp.emit('stdin', message.stdout + '');
       		break;
       }
     */
   function start (message) {
   	var socket = this;
-  	if (message.map === null && message.exec === null) {
+    if (message.map === null && message.exec === null) {
   		socket.emit('err', 'Neither map or exec were provided');
   	} else if (message.map === null && message.exec !== null) {
   		socket.emit('warn', 'No map selected, this will generate an empty one');
-  	} else if (lock) {
+  	} else if (currentServer.lock) {
   		socket.emit('err', 'There is already a server starting');
   	} else {
-  		lock = true;
-  		console.log('ControlSocket [START]', message);
+  		currentServer.lock = true;
+  		currentServer.schedule = message.schedule;
+      console.log('ControlSocket [START]', message);
   		deployServer(message.exec, message.map, serverNsp, function (err, exec) {
-  			lock = false;
-  			//var test = schedule.scheduleJob('* * * * *', function () {
-        //  bundleServer(function () {
-        //    console.log('server bundled!!!!!!');
-        //  });
-        //});
         if (err) return socket.emit('err', err);
   			launchServer(exec);
-  			serverNsp.emit('chat', '[MEANcraft] Bootstrapping server');
+  			serverNsp.emit('stdin', '[MEANcraft] Bootstrapping server');
   		});
   	}
   }
 
   function stop () {
-  	if (!lock) {
-  		lock = true;
+  	if (!currentServer.lock) {
+  		currentServer.lock = true;
   		bundleServer(function () {
-  			current = {
+  			currentServer = {
           map: null,
           exec: null,
           schedule: null
         };
-        lock = false;
+        currentServer.lock = false;
   		});
   	} else {
   		this.emit('err', 'The server is busy...');
   	}
   }
 
-  function getStatus () {
-    var status = (isUp) ? 'Online' : 'Offline';
-    return {status: status, code: lastCode};
-  }
-
-  function status () {
-    this.emit('status', getStatus());
+  function info () {
+    this.emit('info', currentServer);
   }
 
   function list () {
@@ -513,7 +546,7 @@ module.exports = function (app, serverNsp) {
   }
 
   function chat (message) {
-  	if (!message || isUp === false) return;
+  	if (!message || currentServer.status === false) return;
   	console.log('ControlSocket [CHAT]', message);
   	process.send({command: 'stdin', body: message});
   }
@@ -521,7 +554,7 @@ module.exports = function (app, serverNsp) {
   return {
     start: start,
     stop: stop,
-    status: status,
+    info: info,
     list: list,
     chat: chat
   };

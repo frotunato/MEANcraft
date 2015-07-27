@@ -1,5 +1,5 @@
 angular.module('MEANcraftApp.overview')
-
+/*
   .controller('overviewCtrl', function ($scope, ServerSocket, UploadSocket, Executable) {
   
     $scope.data = {
@@ -35,7 +35,7 @@ angular.module('MEANcraftApp.overview')
       console.log(data);
     });
 
-    ServerSocket.on('chat', function (data) {
+    ServerSocket.on('stdin', function (data) {
       console.log(data);
     });
 
@@ -60,7 +60,7 @@ angular.module('MEANcraftApp.overview')
       console.log(data);
       $scope.data.maps = data;
     });
-*/
+
     ServerSocket.on('backup', function (data) {
       console.log(data);
     });
@@ -76,7 +76,7 @@ angular.module('MEANcraftApp.overview')
       config: {},
       start: function () {
         //console.log({config: {map: 'default', executable: this.config.executable.data}});
-        ServerSocket.emit('start', {} /*{config: {map: 'default', executable: this.config.executable.data}}*/);
+        ServerSocket.emit('start', {} {config: {map: 'default', executable: this.config.executable.data}});
       },
       stop: function () {
         ServerSocket.emit('stop', {config: {delay: 1000}});
@@ -98,34 +98,43 @@ angular.module('MEANcraftApp.overview')
     };
   
   })
-
+*/
   .controller('overviewServerCtrl', function ($scope, ServerSocket)  {
     var self = this;
+    
     this.chat = {
       pool: [],
       prefix: '',
       message: '',
       sendMsg: function () {
         if (!this.message) return;
-        ServerSocket.emit('chat', this.message);
+        ServerSocket.emit('stdin', this.message);
         this.message = '';
       }
     };
-    this.currentTask = {
-      name: 'None', 
-      percentage: 0
+
+    this.info = {
+      status: 'Unknown',
+      map: 'Unknown',
+      exec: 'Unknown',
+      uptime: 'Unknown'
     };
 
+    this.selected = {
+      exec: null,
+      map: null,
+      schedule: null
+    };
 
-    this.currentStatus = 'Unknown';
+    //this.currentStatus = 'Unknown';
     ServerSocket.emit('list');
-    ServerSocket.emit('status');
+    ServerSocket.emit('info');
     
     ServerSocket.on('err', function (message) {
       window.alert(JSON.stringify(message));
     });
 
-    ServerSocket.on('chat', function (message) {
+    ServerSocket.on('stdin', function (message) {
       $scope.$broadcast("chat");
       if (self.chat.pool.length > 100) {
         self.chat.pool.splice(0, 1);
@@ -136,38 +145,28 @@ angular.module('MEANcraftApp.overview')
     ServerSocket.on('list', function (message) {
       if (!message) return;
       console.log(message);
-      self.map.list = message.maps;
-      self.exec.list = message.execs;
+      self.mapList = message.maps;
+      self.execList = message.execs;
       //console.log(message);
     });
     
-    ServerSocket.on('status', function (message) {
-      self.currentStatus = message.status;
+    ServerSocket.on('info', function (message) {
+      self.info = angular.extend(self.info, message);
     });
 
-    ServerSocket.on('progress', function (message) {
-      self.currentTask.name = message.reason;
-      self.currentTask.percentage = Math.ceil(message.progress.percentage);
-    });
+    this.execList = [];
 
-    this.exec = {
-      list: [],
-      selected: {_id: null}
-    };
-
-    this.map = {
-      list: [],
-      selected: {_id: null}
-    };
+    this.mapList = [];
 
     this.options = {};
 
     this.start = function () {
-      console.log(self.exec, self.map);
+      //console.log(self.exec, self.map);
       //if (!self.exec.selected._id || !self.map.selected._id) return;
       ServerSocket.emit('start', {
-        exec: self.exec.selected._id,
-        map: self.map.selected._id
+        exec: self.selected.exec._id,
+        map: self.selected.map._id,
+        schedule: self.selected.schedule
       });
     };
     this.stop = function () {

@@ -1,7 +1,5 @@
 var childProcess = require('child_process');
 var spawn = childProcess.spawn;
-var EventEmitter = require('events').EventEmitter;
-
 var webServer = childProcess.fork('./server/server.js');
 var gameServer = null;
 
@@ -13,7 +11,7 @@ function startGameServer (body) {
   });
   gameServer.on('exit', function (code, signal) {
     console.log('Gameserver died', code, signal);
-    webServer.emit('status', {code: code, signal: signal});
+    webServer.send({command: 'stop', body: {code: code, signal: signal}});
     gameServer = null;
   });
 }
@@ -36,7 +34,8 @@ webServer.on('status', function (body) {
 
 webServer.on('stdin', function (body) {
   if (!gameServer) return;
-  gameServer.stdin.write(body);
+  console.log('writing', body);
+  gameServer.stdin.write(body + '\r');
 });
 
 webServer.on('stdout', function (body) {

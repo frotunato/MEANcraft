@@ -2,23 +2,33 @@ h4 Overview
 
 div(id="controlBox" ng-controller="overviewServerCtrl as server")
   div(class="container" id="chatContainer")
-    div(class="row" scroll-glue style="overflow-y: auto; background-color: ghostwhite; height: 400px;")
+    div(class="row" scroll-glue style="overflow-y: auto; background-color: ghostwhite; min-height: 350px; max-height: 400px;")
       ul(class="eleven columns" style="min-height: 100%;")
         li(ng-repeat="line in server.chat.pool track by $index" class="chat-line") {{line}}
     div(class="row")
       input(type="text" ng-model="server.chat.message" style="width: 98%;" ng-keyup="$event.keyCode == 13 ? server.chat.sendMsg() : null") 
   button(ng-click="server.start()") Start
   button(ng-click="server.stop()") Stop
-  select(ng-model="server.map.selected" ng-options="map as (map.uploadDate | date:'dd/MM/yyyy HH:mm:ss') group by map.metadata.name for map in server.map.list track by map._id")
+  select(ng-model="server.selected.map" ng-options="map as (map.uploadDate | date:'dd/MM/yyyy HH:mm:ss') group by map.metadata.name for map in server.mapList track by map._id")
     option(value="") Select a map
-  select(ng-model="server.exec.selected" ng-options="exec as (exec.uploadDate | date:'dd/MM/yyyy HH:mm:ss') group by exec.metadata.name for exec in server.exec.list track by exec._id")
+  select(ng-model="server.selected.exec" ng-options="exec as (exec.uploadDate | date:'dd/MM/yyyy HH:mm:ss') group by exec.metadata.name for exec in server.execList track by exec._id")
     option(value="") Select an executable
-  pre 
-    b Task: 
-    {{server.currentTask.name}} ({{server.currentTask.percentage}}%)
+  b Backup schedule
+  input(type="checkbox" id="scheduleEnabler" ng-model="server.$schedule" ng-false-value="false" ng-true-value="true")
+  label(for="scheduleEnabler") {{server.$schedule}}
+  div(id="scheduleConfig" ng-if="server.$schedule")
+    input(type="number" min="1" max="60" step="1" ng-model="server.selected.schedule") 
+    {{server.selected}}
+
   pre
-    b  Status:
-    {{server.currentStatus}}
+    b Status {{server.info.status}}
+  pre
+    b Map {{server.info.map.metadata.name}}
+  pre
+    b Exec {{server.info.exec.metadata.name}}
+  pre
+    b Uptime {{server.info.uptime}}
+
 h5 Upload file
 div(id="uploadBox" ng-controller="uploadServerCtrl as upload")
   span(id="uploadArea")
