@@ -14,6 +14,7 @@ var unzip = require('unzip2');
 var progress = require('progress-stream');
 
 function insert (readStream, data, cb) {
+  //data.chunkSize = 1000000;
   var writeStream = gridfs.createWriteStream(data);
   //var writeStream = fs.createWriteStream('./temp/' + Date.now() + 'a.zip.lz4');
   readStream.pipe(writeStream);
@@ -95,10 +96,12 @@ function _extractFile (id, io, cb) {
     });
   });
 }
-
+// docs = execs: [{name: 'yolo', list: []}]
 function getMapsAndBackups (callback) {
   var cursor = gridfs.files.find({'metadata.parent_id': null});
   var docs = {execs: [], maps: []};
+  var index;
+  var prop;
   async.series([
     function (cb) {
       cursor.each(function (err, doc) {
@@ -107,11 +110,18 @@ function getMapsAndBackups (callback) {
         } else if (doc === null) {
           cb();
         } else {
-          if (doc.metadata.type === 'exec') {
-            docs.execs.push(doc);
-          } else if (doc.metadata.type === 'map') {
-            docs.maps.push(doc);
+          prop = (doc.metadata.type === 'exec') ? 'execs' : 'maps';
+          index = util.deepIndexOf(docs[prop], 'name', doc.metadata.name);
+          if (index === -1) {
+            docs[prop].push({name: doc.metadata.name, list: [doc]});
+          } else {
+            docs[prop][index].list.push(doc);
           }
+         // if (doc.metadata.type === 'exec') {
+         //   docs.execs.push(doc);
+         // } else if (doc.metadata.type === 'map') {
+         //   docs.maps.push(doc);
+         // }
         }
       });
     }

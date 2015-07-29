@@ -144,10 +144,8 @@ angular.module('MEANcraftApp.overview')
 
     ServerSocket.on('list', function (message) {
       if (!message) return;
-      console.log(message);
       self.mapList = message.maps;
       self.execList = message.execs;
-      //console.log(message);
     });
     
     ServerSocket.on('info', function (message) {
@@ -163,10 +161,11 @@ angular.module('MEANcraftApp.overview')
     this.start = function () {
       //console.log(self.exec, self.map);
       //if (!self.exec.selected._id || !self.map.selected._id) return;
+      var schedule = (self._schedule) ? self.selected.schedule : null;
       ServerSocket.emit('start', {
         exec: self.selected.exec._id,
         map: self.selected.map._id,
-        schedule: self.selected.schedule
+        schedule: schedule
       });
     };
     this.stop = function () {

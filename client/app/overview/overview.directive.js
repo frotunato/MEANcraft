@@ -94,21 +94,58 @@ angular.module('MEANcraftApp.overview')
     };
   })
 
-  .directive("scrollToBottomWhen", function ($timeout) {
+  .directive('tabRow', function () {
     return {
-      link: function (scope, element, attrs) {
-      
-        scope.$on(attrs.scrollToBottomWhen, function () {
-          $timeout(function () {
-            //var height = angular.element(element[0]).scrollTop;
-            var height = element[0].scrollTop;
-            //console.log(element);
-            element[0].scrollTop = height;
-            console.log('scrolling', height);
-            //window.alert('yo');
-          });
-        });
+      template: 
+      '{{tabRow.current}} true <ul ng-transclude>' +
+        //'<li ng-repeat="tab in tabRow.tabs">' + 
+        //  '<a href="" ng-click="tabRow.select(tab)"> {{tab}} </a>' +
+        //'</li>' +
+      '</ul>',
+      transclude: true,
+      restrict: 'E',
+      bindTocontroller: true,
+      controllerAs: 'tabRow',
+      controller: function () {
+        var self = this;
+        this.current = null;
+        this.select = function (tab) {
+          self.current = tab;
+          console.log(self.current, 'selected');
+          return self.current;
+        };
       }
     };
+  })
 
+  .directive('tab', function () {
+    return {
+      replace: false,
+      require: '^tabRow',
+      scope: {},
+      template: 
+      '<li>' +
+        '<a href="" ng-click="toggle()"> a {{current}}' +
+        '<ng-transclude></ng-transclude>' +
+        '</a>' +
+      '</li>',
+      transclude: true,
+      restrict: 'E',
+      link: function (scope, element, attrs, tabRowCtrl) {
+        scope.toggle = function () {
+          tabRowCtrl.select(attrs.heading);
+        };
+        scope.getData = function () {
+          return tabRowCtrl.current;
+        };
+        scope.$watch('getData()', function (newValue, oldValue) {
+          console.log('OLD', oldValue, 'NEW', newValue)
+          if (newValue && newValue === attrs.heading) {
+            console.log('tab is different, now toggling', newValue);
+          } else if (newValue !== attrs.heading) {
+            console.log('disabling', newValue)
+          }
+        })
+      }
+    };
   });

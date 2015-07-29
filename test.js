@@ -91,30 +91,50 @@ function addSchedule (config, fn) {
   });
 }
 */
+var alphaTime = Date.now();
 
-function addSchedule (config, fn) {
+function addSchedule (config, fn, fnFail) {
 	var currentTry = 0;
 	var maxTries = 2;
+	var job = schedule.scheduleJob('' + Date.now(), config, function () {
+		tryIt();
+	});
+	console.log(schedule.scheduledJobs);
 	function tryIt () {
 		if (currentTry < maxTries) {
-			console.log(currentTry)
 			if (currentServer.lock) {
 				currentTry ++;
-				setTimeout(tryIt, 3000);
+				console.log('ControlSocket [ADD SCHEDULE]', 'server is currently locked, retrying in 5 seconds (' + currentTry + '/' + maxTries + ')');
+				if (currentTry >= maxTries) {
+					tryIt();
+				} else {
+					setTimeout(tryIt, 5000);
+				}
 			} else {
 				fn();
 			}
+		} else {
+			console.log('ControlSocket [ADD SCHEDULE]', 'server locked for a long period of time, aborting schedule...');
+			fnFail(job);
 		}
 	}
-
-
-	schedule.scheduleJob(config, function () {
-		tryIt(2, fn);
-	})
 }
 
 function aa () {
 	console.log('yolo');
 }
 
-addSchedule('*/1 * * * *', aa)
+addSchedule('*/1 * * * *', aa, function (job) {
+	console.log('cancelled job');
+	job.cancel();
+});
+
+addSchedule('*/1 * * * *', aa, function (job) {
+	console.log('cancelled job');
+	job.cancel();
+});
+
+addSchedule('*/1 * * * *', aa, function (job) {
+	console.log('cancelled job');
+	job.cancel();
+});
