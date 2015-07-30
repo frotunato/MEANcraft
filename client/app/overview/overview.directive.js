@@ -124,14 +124,16 @@ angular.module('MEANcraftApp.overview')
       require: '^tabRow',
       scope: {},
       template: 
-      '<li>' +
-        '<a href="" ng-click="toggle()"> a {{current}}' +
-        '<ng-transclude></ng-transclude>' +
-        '</a>' +
+      '<li">' +
+        '<a href="" ng-click="toggle()"> {{heading}} </a>' +
+        '<ng-transclude ng-show="isHide"></ng-transclude> ' +
+        ' {{isHide}} ' + 
       '</li>',
       transclude: true,
       restrict: 'E',
       link: function (scope, element, attrs, tabRowCtrl) {
+        scope.heading = attrs.heading;
+        scope.isHide = (attrs.active) ? true : false;
         scope.toggle = function () {
           tabRowCtrl.select(attrs.heading);
         };
@@ -140,10 +142,14 @@ angular.module('MEANcraftApp.overview')
         };
         scope.$watch('getData()', function (newValue, oldValue) {
           console.log('OLD', oldValue, 'NEW', newValue)
+          if (!newValue && !oldValue) return;
           if (newValue && newValue === attrs.heading) {
+            scope.isHide = false;
             console.log('tab is different, now toggling', newValue);
-          } else if (newValue !== attrs.heading) {
-            console.log('disabling', newValue)
+          } 
+          if (newValue !== scope.heading) {
+            console.log('disabling', oldValue)
+            scope.isHide = true;
           }
         })
       }
