@@ -1,83 +1,114 @@
-h4 Overview
-tab-row
-  tab(heading="Overview" active) uno
-  tab(heading="Chat") dos
-//ul {{_selectedTab}}
-//  li(id="1" ng-show="_selectedTab === 1" ng-click="_selectedTab=1") a
-//  li(id="2" ng-show="_selectedTab === 2" ng-click="_selectedTab=2") b
-//  li(id="3" ng-show="_selectedTab === 3" ng-click="_selectedTab=3") c
-div(id="controlBox" ng-controller="overviewServerCtrl as server")
-  div(class="container" id="chatContainer")
-    div(class="row" scroll-glue style="overflow-y: auto; background-color: ghostwhite; min-height: 350px; max-height: 400px;")
-      ul(class="eleven columns" style="min-height: 100%;")
-        li(ng-repeat="line in server.chat.pool track by $index" class="chat-line") {{line}}
-    div(class="row")
-      input(type="text" ng-model="server.chat.message" style="width: 98%;" ng-keyup="$event.keyCode == 13 ? server.chat.sendMsg() : null") 
-  button(ng-click="server.start()") Start
-  button(ng-click="server.stop()") Stop
+tabset
+  tab(id="chatBox" active heading="Chat" ng-controller="chatCtrl as chat")
+    div(class="panel panel-default" scroll-glue style="overflow-y: auto; margin: 7px; background-color: ghostwhite; min-height: 350px; max-height: 400px;")
+      ul(class="list-group" style="min-height: 100%;")
+        li(ng-repeat="line in chat.pool track by $index" class="chat-line") {{line}}
+    div(class="form-control form-control-sm" style="margin: 7px;")
+      span(class="form-control-addon") $:
+      input(type="text" class="form-control" ng-model="chat.message" ng-keyup="$event.keyCode == 13 ? chat.send() : null") 
   
-  select(ng-model="server._mapGroup" ng-change="server.selected.map = server._mapGroup.list[server._mapGroup.list.length - 1]" ng-options="mapGroup as mapGroup.name for mapGroup in server.mapList")
-    option(value="") Select a map
-  select(ng-model="server.selected.map" ng-options="map as (map.uploadDate | date:'dd/MM/yyyy HH:mm:ss') for map in server._mapGroup.list")
-    option(value="") Select version
-  
-  select(ng-model="server._execGroup" ng-change="server.selected.exec = server._execGroup.list[server._execGroup.list.length - 1]" ng-options="execGroup as execGroup.name for execGroup in server.execList")
-    option(value="") Select an executable
-  select(ng-model="server.selected.exec" ng-options="exec as (exec.uploadDate | date:'dd/MM/yyyy HH:mm:ss') for exec in server._execGroup.list")
-    option(value="") Select version
+  tab(id="managerBox" heading="Manager" ng-controller="managerCtrl as manager")  
+    div(id="managerWrapper" class="row")
+      div(class="col-md-6")
+        form(class="form-horizontal")
+          fieldset(class="form-group")
+            legend(class="text-center") Map
+            label(for="mapName" class="col-sm-2 control-label") Name
+            div(class="col-md-10")
+              select(id="mapName" class="form-control"  ng-model="manager._mapGroup" ng-change="manager.selected.map = manager._mapGroup.list[manager._mapGroup.list.length - 1]" ng-options="mapGroup as mapGroup.name for mapGroup in manager.mapList")
+                option(value="") -----------
+            
+            label(for="mapDate" class="col-sm-2 control-label") Date
+            div(class="col-md-10")
+              select(id="mapDate" class="form-control" ng-model="manager.selected.map" ng-options="map as (map.uploadDate | date:'dd/MM/yyyy HH:mm:ss') for map in manager._mapGroup.list")
+                option(value="") -----------
+          fieldset(class="form-group")
+            legend(class="text-center") Executable
+            label(for="execName" class="col-sm-2 control-label") Name
+            div(class="col-md-10")
+              select(id="execName" class="form-control"  ng-model="manager._execGroup" ng-change="manager.selected.exec = manager._execGroup.list[manager._execGroup.list.length - 1]" ng-options="execGroup as execGroup.name for execGroup in manager.execList")
+                option(value="") Select an executable
+            
+            label(for="execDate" class="col-sm-2 control-label") Date
+            div(class="col-md-10")
+              select(id="execDate" class="form-control" ng-model="manager.selected.exec" ng-options="exec as (exec.uploadDate | date:'dd/MM/yyyy HH:mm:ss') for exec in manager._execGroup.list")
+                option(value="") Select version
+          fieldset(class="form-group")
+            legend(class="text-center") Schedule {{manager.schedule}}
+            label(for="scheduleFrec" class="col-sm-2 control-label") Backup
+            div(class="col-sm-4")
+              select(id="scheduleFrec" ng-model="manager.schedule.frec" ng-change="manager.schedule = {frec: manager.schedule.frec}" class="form-control")
+                option(value="every") Every
+                option(value="once") Once a day at
+                option(value="event") On specific event
+            div(ng-switch="manager.schedule.frec")
+              div(ng-switch-when="every" class="col-md-2" ng-switch="manager.schedule.type")
+                input(ng-switch-when="minute" type="number" min="1" max="59" ng-model="manager.schedule.minute" class="form-control")
+                input(ng-switch-when="hour" type="number" min="1" max="72" ng-model="manager.schedule.hour" class="form-control")
+              div(ng-switch-when="once" class="col-md-2")
+                div(class="form-inline")
+                  div(style="display: inline-flex;")
+                    input(class="form-control" type="number" ng-model="manager.schedule.hour")
+                    span :
+                    //div(class="input-group-addon") :
+                    input(class="form-control" type="number" ng-model="manager.schedule.minute")
+              div(class="col-md-2" ng-switch-when="event")
 
-  //select(ng-model="server.selected.map" ng-options="map as (map.uploadDate | date:'dd/MM/yyyy HH:mm:ss') group by map.metadata.name for map in server.mapList track by map._id")
-  //  option(value="") Select a map
-  //select(ng-model="server.selected.exec" ng-options="exec as (exec.uploadDate | date:'dd/MM/yyyy HH:mm:ss') group by exec.metadata.name for exec in server.execList track by exec._id")
-  //  option(value="") Select an executable
-  //
-  
-  b Backup schedule
-  input(type="checkbox" id="scheduleEnabler" ng-model="server._schedule" ng-false-value="false" ng-true-value="true")
-  label(for="scheduleEnabler") {{server._schedule}}
-  div(id="scheduleConfig" ng-if="server._schedule")
-    input(type="number" min="1" max="60" step="1" ng-model="server.selected.schedule") 
-  pre
-    b Status {{server.info.status}}
-  pre
-    b Map {{server.info.map.metadata.name}}
-  pre
-    b Exec {{server.info.exec.metadata.name}}
-  pre
-    b Uptime {{server.info.uptime}}
+            div(ng-if="manager.schedule.frec === 'every'" class="col-md-3")
+              select(class="form-control" ng-model="manager.schedule.type")
+                option(value="minute") minutes
+                option(value="hour") hours
+      div(id="mapSelectorContainer" class="row")
+          
+      div(id="execSelectorContainer" class="row")
+        
+    //b Backup schedule
+    //input(type="checkbox" id="scheduleEnabler" ng-model="manager._schedule" ng-false-value="false" ng-true-value="true")
+    //label(for="scheduleEnabler") {{manager._schedule}}
+    //div(id="scheduleConfig" ng-if="manager._schedule")
+    //  input(type="number" min="1" max="60" step="1" ng-model="manager.selected.schedule") 
+    //pre
+    //  b Status {{server.info.status}}
+    //pre
+    //  b Map {{server.info.map.metadata.name}}
+    //pre
+    //  b Exec {{server.info.exec.metadata.name}}
+    //pre
+    //  b Uptime {{server.info.uptime}}
+  tab(id="uploadBox" heading="Upload" ng-controller="uploadCtrl as upload")
+    span(id="uploadArea")
+      label(for="execFile") Choose an executable:
+        input(fileRead="upload.exec" type="file" id="execFile")
+      label(for="execName") Name:
+        input(type="text" id="execName" ng-model="upload.exec.metadata.name")
+        {{upload.exec.offset/1000000 | number:0}} MB / {{upload.exec.data.size/1000000 | number:0}} MB ({{100*upload.exec.offset/upload.exec.data.size | number:0}} %)
+      //button(type="button" ng-click="upload.start(upload.file, 'exec')" id="uploadButton") Upload
 
-h5 Upload file
-div(id="uploadBox" ng-controller="uploadServerCtrl as upload")
-  span(id="uploadArea")
-    label(for="execFile") Choose an executable:
-      input(fileRead="upload.exec" type="file" id="execFile")
-    label(for="execName") Name:
-      input(type="text" id="execName" ng-model="upload.exec.metadata.name")
-      {{upload.exec.offset/1000000 | number:0}} MB / {{upload.exec.data.size/1000000 | number:0}} MB ({{100*upload.exec.offset/upload.exec.data.size | number:0}} %)
-    //button(type="button" ng-click="upload.start(upload.file, 'exec')" id="uploadButton") Upload
+      label(for="mapFile") Choose a map:
+        input(fileRead="upload.map" type="file" id="mapFile")
+      label(for="mapName") Name:
+        input(type="text" id="mapName" ng-model="upload.map.metadata.name")
+        {{upload.map.offset/1000000 | number:0}} MB / {{upload.map.data.size/1000000 | number:0}} MB ({{100*upload.map.offset/upload.map.data.size | number:0}} %)
+      //button(type="button" ng-click="upload.start(upload.file, 'exec')" id="uploadButton") Upload
+    button(type="button" ng-click="upload.start()") Upload
 
-    label(for="mapFile") Choose a map:
-      input(fileRead="upload.map" type="file" id="mapFile")
-    label(for="mapName") Name:
-      input(type="text" id="mapName" ng-model="upload.map.metadata.name")
-      {{upload.map.offset/1000000 | number:0}} MB / {{upload.map.data.size/1000000 | number:0}} MB ({{100*upload.map.offset/upload.map.data.size | number:0}} %)
-    //button(type="button" ng-click="upload.start(upload.file, 'exec')" id="uploadButton") Upload
-  button(type="button" ng-click="upload.start()") Upload
+    h5 Chunk size selector:
+    select(ng-model="upload.chunkSize")
+        option(value="4") 4 bytes
+        option(value="8") 8 bytes
+        option(value="16") 16 bytes
+        option(value="32") 32 bytes
+        option(value="64") 64 bytes
+        option(value="1024") 1024 bytes
+        option(value="5024") 5024 bytes
+        option(value="9024") 9024 bytes
+        option(value="500000") 500 KB
+        option(value="1000000") 1 MB
+        option(selected value="2000000") 2 MB
+        option(value="5000000") 5 MB
+        option(value="20000000") 20 MB
 
-  h5 Chunk size selector:
-  select(ng-model="upload.chunkSize")
-    option(value="4") 4 bytes
-    option(value="8") 8 bytes
-    option(value="16") 16 bytes
-    option(value="32") 32 bytes
-    option(value="64") 64 bytes
-    option(value="1024") 1024 bytes
-    option(value="5024") 5024 bytes
-    option(value="9024") 9024 bytes
-    option(value="500000") 500 KB
-    option(value="1000000") 1 MB
-    option(selected value="2000000") 2 MB
-    option(value="5000000") 5 MB
-    option(value="20000000") 20 MB
-
-h5 Manage maps and executables
+    h5 Manage maps and executables
+  tab(id="infoBox" heading="Info")
+    //button(ng-click="server.start()") Start//
+    //button(ng-click="server.stop()") Stop//

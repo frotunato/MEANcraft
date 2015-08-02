@@ -1,0 +1,34 @@
+div(id="uploadBox" heading="Upload" ng-controller="uploadServerCtrl as upload")
+  span(id="uploadArea")
+    label(for="execFile") Choose an executable:
+      input(fileRead="upload.exec" type="file" id="execFile")
+    label(for="execName") Name:
+      input(type="text" id="execName" ng-model="upload.exec.metadata.name")
+      {{upload.exec.offset/1000000 | number:0}} MB / {{upload.exec.data.size/1000000 | number:0}} MB ({{100*upload.exec.offset/upload.exec.data.size | number:0}} %)
+    //button(type="button" ng-click="upload.start(upload.file, 'exec')" id="uploadButton") Upload
+
+    label(for="mapFile") Choose a map:
+      input(fileRead="upload.map" type="file" id="mapFile")
+    label(for="mapName") Name:
+      input(type="text" id="mapName" ng-model="upload.map.metadata.name")
+      {{upload.map.offset/1000000 | number:0}} MB / {{upload.map.data.size/1000000 | number:0}} MB ({{100*upload.map.offset/upload.map.data.size | number:0}} %)
+    //button(type="button" ng-click="upload.start(upload.file, 'exec')" id="uploadButton") Upload
+  button(type="button" ng-click="upload.start()") Upload
+
+  h5 Chunk size selector:
+  select(ng-model="upload.chunkSize")
+      option(value="4") 4 bytes
+      option(value="8") 8 bytes
+      option(value="16") 16 bytes
+      option(value="32") 32 bytes
+      option(value="64") 64 bytes
+      option(value="1024") 1024 bytes
+      option(value="5024") 5024 bytes
+      option(value="9024") 9024 bytes
+      option(value="500000") 500 KB
+      option(value="1000000") 1 MB
+      option(selected value="2000000") 2 MB
+      option(value="5000000") 5 MB
+      option(value="20000000") 20 MB
+
+  h5 Manage maps and executables

@@ -2,12 +2,13 @@ doctype html
 html(ng-app="MEANcraftApp")
   head
     title MEANcraft
-    link(rel="stylesheet" href="components/skeleton/skeleton.css")
-    link(rel="stylesheet" href="components/skeleton/normalize.css")  
+    link(rel="stylesheet" href="bower_components/bootstrap/dist/css/bootstrap.min.css")
+    link(rel="stylesheet" href="components/css/custom.css")
+    //link(rel="stylesheet" href="components/skeleton/skeleton.css")
+    //link(rel="stylesheet" href="components/skeleton/normalize.css")  
     <!--########################## ANGULAR CORE ###########################-->
     script(defer src="bower_components/angular/angular.js")
     script(defer src="bower_components/angular-route/angular-route.min.js")
-    script(defer src="bower_components/angular-resource/angular-resource.min.js")
     <!--###################################################################-->
     
     <!--########################## APP MODULES ############################-->
@@ -39,12 +40,10 @@ html(ng-app="MEANcraftApp")
     <!--###################################################################-->
     
     <!--######################### ANGULAR EXTRAS ##########################-->
-    //script(defer src="bower_components/angular-strap/dist/angular-strap.min.js")
-    //script(defer src="bower_components/angular-strap/dist/angular-strap.tpl.min.js")
     script(defer src="/socket.io/socket.io.js")
-    //script(defer src="bower_components/angular-socket-io/socket.js")
     script(defer src="bower_components/angularjs-scroll-glue/src/scrollglue.js")
     script(defer src="bower_components/angular-socket-io/socket.min.js")
-    //script(defer src="bower_components/ng-flow/dist/ng-flow-standalone.js")
+    script(defer src="bower_components/angular-bootstrap/ui-bootstrap.min.js")
+    script(defer src="bower_components/angular-bootstrap/ui-bootstrap-tpls.min.js")
     <!--###################################################################-->
   body(ng-view)

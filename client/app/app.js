@@ -1,4 +1,4 @@
-angular.module('MEANcraftApp', ['ngRoute', 'ngResource', 'MEANcraftApp.login', 'MEANcraftApp.overview', 'btford.socket-io'/*,'socket-io',  'flow'*/])
+angular.module('MEANcraftApp', ['ngRoute', 'MEANcraftApp.login', 'MEANcraftApp.overview', 'btford.socket-io'/*,'socket-io',  'flow'*/])
 
   .config(function ($httpProvider, $routeProvider) {
     $httpProvider.interceptors.push('TokenInterceptor');
@@ -16,14 +16,6 @@ angular.module('MEANcraftApp', ['ngRoute', 'ngResource', 'MEANcraftApp.login', '
         //controller: 'overviewCtrl',
         protect: true,
         resolve: {
-          initialData: function (Executable, $q) {
-            var promises = {};
-
-            promises.executables = Executable.query(function (response) {
-              return response;
-            });
-            return $q.all(promises);
-          }
         }
       })
 
@@ -34,7 +26,7 @@ angular.module('MEANcraftApp', ['ngRoute', 'ngResource', 'MEANcraftApp.login', '
     })
 
   .run(function ($rootScope, $location, $window, $routeParams, UserAuth) {
-    if (UserAuth.isLogged === false) {
+    if (!UserAuth.isLogged) {
       $location.path('/login');
     }
 
