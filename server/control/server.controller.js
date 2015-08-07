@@ -6,13 +6,14 @@ var util = require('./server.util.js');
 var path = require('path');
 var rimraf = require('rimraf');
 var schedule = require('node-schedule');
+var _ = require('lodash');
 
 var gameServer = new EventEmitter();
 var _controlNsp = null;
 var currentServer = {
   map: null, 
   exec: null, 
-  schedule: null,
+  schedules: [],
   status: false,
   lock: false
 };
@@ -394,6 +395,7 @@ function bundleServer (cb) {
 	});
 	*/
 }
+
 /*
 function addSchedule (config, fn) {
   if (!config) return;
@@ -423,7 +425,7 @@ function addSchedule (config, fn) {
 }
 */
 
-function addSchedule (fn, fnFail) {
+function addSchedule (config, fn, fnFail) {
   var currentTry = 0;
   var maxTries = 2;
   function tryIt () {
@@ -441,12 +443,46 @@ function addSchedule (fn, fnFail) {
       }
     } else {
       console.log('ControlSocket [ADD SCHEDULE]', 'server locked for a long period of time, aborting schedule...');
-      fnFail(job);
+      if (fnFail) fnFail(job);
     }
   }
-  console.log('trying')
-  currentServer.schedule = schedule.scheduleJob('current_' + Date.now(), currentServer.schedule, function () {
+  currentServer.schedule = schedule.scheduleJob('current_' + Date.now(), config, function () {
     tryIt();
+  });
+}
+
+function setSchedule (input) {
+  if (Array.isArray(input) && input.length > 0) {
+    input.forEach(function (element, index, array) {
+      addSchedule(element, backupSchedule, function (job) {
+        _controlNsp.emit('stdin', '[MEANcraft] Warning: Backup schedule disabled due long server lock');
+        job.cancel();
+      });
+    });
+    console.log(input);
+  } else {
+
+  }
+}
+
+
+function lock (broadcast) {
+  currentServer.lock = true;
+  if (broadcast) _controlNsp.emit('info', {lock: true});
+}
+
+function unlock (broadcast) {
+  currentServer.lock = false;
+  if (broadcast) _controlNsp.emit('info', {lock: false});
+}
+
+function backupSchedule () {
+  var alphaTime = Date.now();
+  _controlNsp.emit('stdin', '[MEANcraft] Backup in progress...' );
+  lock();
+  bundleServer(function () {
+    unlock();
+    _controlNsp.emit('stdin', '[MEANcraft] Backup done (' + Math.ceil((Date.now() - alphaTime) / 1000) + ' s)');
   });
 }
 
@@ -464,28 +500,12 @@ gameServer.on('stdout', function (body) {
 });
 
 gameServer.on('start', function () {
-  currentServer.lock = false;
+  unlock();
   currentServer.status = true;
   _controlNsp.emit('info', currentServer);
-  if (currentServer.schedule) {
-    _controlNsp.emit('stdin', '[MEANcraft] Scheduled backups are enabled');
-    var backupSchedule = function () {
-      var alphaTime = Date.now();
-      _controlNsp.emit('stdin', '[MEANcraft] Backup in progress...' );
-      currentServer.lock = true;
-      bundleServer(function () {
-        currentServer.lock = false;
-        _controlNsp.emit('stdin', '[MEANcraft] Backup done (' + Math.ceil((Date.now() - alphaTime) / 1000) + ' s)');
-      });
-    };
-    console.log('scheduling', currentServer.schedule);
-    addSchedule(backupSchedule, function (job) {
-      _controlNsp.emit('stdin', '[MEANcraft] Warning: Backup schedule disabled due long server lock');
-      job.cancel();
-    });
-  } else {
-    _controlNsp.emit('stdin', '[MEANcraft] Warning: scheduled backups are disabled');
-  }
+  setSchedule(currentServer.schedules);
+  //_controlNsp.emit('stdin', '[MEANcraft] Scheduled backups are enabled');
+  //_controlNsp.emit('stdin', '[MEANcraft] Warning: scheduled backups are disabled');
 });
 
 gameServer.on('stop', function (body) {
@@ -544,10 +564,10 @@ module.exports = function (app, serverNsp) {
   	} else if (currentServer.lock) {
   		socket.emit('err', 'There is already a server starting');
   	} else {
-  		currentServer.lock = true;
-  		currentServer.schedule = '*/' + message.schedule + ' * * * *';
+  		lock(true);
+      currentServer.schedules = message.schedules;
       console.log('ControlSocket [START]', message);
-  		deployServer(message.exec, message.map, serverNsp, function (err, exec) {
+      deployServer(message.exec, message.map, serverNsp, function (err, exec) {
         if (err) return socket.emit('err', err);
   			launchServer(exec);
   			serverNsp.emit('stdin', '[MEANcraft] Bootstrapping server');
@@ -557,14 +577,14 @@ module.exports = function (app, serverNsp) {
 
   function stop () {
   	if (!currentServer.lock) {
-  		currentServer.lock = true;
+      lock(true);
   		bundleServer(function () {
   			currentServer = {
           map: null,
           exec: null,
-          schedule: null
+          schedules: null
         };
-        currentServer.lock = false;
+        unlock(true);
   		});
   	} else {
   		this.emit('err', 'The server is busy...');
@@ -572,7 +592,13 @@ module.exports = function (app, serverNsp) {
   }
 
   function info () {
-    this.emit('info', currentServer);
+    var self = this;
+    var obj = {selected: currentServer};
+    Model.getMapsAndBackups(function (err, docs) {
+      obj = _.merge(docs, obj);
+      console.log(obj)
+      self.emit('info', obj);
+    });
   }
 
   function list () {

@@ -3,61 +3,119 @@ tabset
     div(class="panel panel-default" scroll-glue style="overflow-y: auto; margin: 7px; background-color: ghostwhite; min-height: 350px; max-height: 400px;")
       ul(class="list-group" style="min-height: 100%;")
         li(ng-repeat="line in chat.pool track by $index" class="chat-line") {{line}}
-    div(class="form-control form-control-sm" style="margin: 7px;")
-      span(class="form-control-addon") $:
-      input(type="text" class="form-control" ng-model="chat.message" ng-keyup="$event.keyCode == 13 ? chat.send() : null") 
-  
+    div(class="form-horizontal" style="margin: 7px;")
+      div(class="form-group")
+        div(class="col-md-1")
+          button(type="button" class="btn btn-default" ng-model="chat.prefix" btn-checkbox btn-checkbox-true="true" btn-checkbox-false="false") /say
+        div(class="col-md-11")
+          input(id="chatInput" type="text" class="form-control" ng-model="chat.message" ng-keyup="$event.keyCode == 13 ? chat.send() : null") 
   tab(id="managerBox" heading="Manager" ng-controller="managerCtrl as manager")  
     div(id="managerWrapper" class="row")
       div(class="col-md-6")
-        form(class="form-horizontal")
+        form(class="form-horizontal" ng-submit="manager.start()")
           fieldset(class="form-group")
             legend(class="text-center") Map
             label(for="mapName" class="col-sm-2 control-label") Name
             div(class="col-md-10")
-              select(id="mapName" class="form-control"  ng-model="manager._mapGroup" ng-change="manager.selected.map = manager._mapGroup.list[manager._mapGroup.list.length - 1]" ng-options="mapGroup as mapGroup.name for mapGroup in manager.mapList")
+              select(required 
+                ng-disabled="manager.selected.status" 
+                id="mapName" 
+                class="form-control" 
+                ng-model="manager._mapGroup" 
+                ng-change="manager.selected.map = manager._mapGroup[manager._mapGroup.length - 1]" 
+                ng-options="value as key for (key, value) in manager.mapList")
                 option(value="") -----------
-            
             label(for="mapDate" class="col-sm-2 control-label") Date
-            div(class="col-md-10")
-              select(id="mapDate" class="form-control" ng-model="manager.selected.map" ng-options="map as (map.uploadDate | date:'dd/MM/yyyy HH:mm:ss') for map in manager._mapGroup.list")
+            div(class="col-md-10") 
+              select(required 
+                ng-disabled="manager.selected.status" 
+                id="mapDate" 
+                ng-change="manager.pump()" 
+                class="form-control"
+                ng-model="manager.selected.map" 
+                ng-options="map as (map.uploadDate | date:'dd/MM/yyyy HH:mm:ss') for map in manager._mapGroup track by map.uploadDate")
                 option(value="") -----------
+              
           fieldset(class="form-group")
             legend(class="text-center") Executable
             label(for="execName" class="col-sm-2 control-label") Name
             div(class="col-md-10")
-              select(id="execName" class="form-control"  ng-model="manager._execGroup" ng-change="manager.selected.exec = manager._execGroup.list[manager._execGroup.list.length - 1]" ng-options="execGroup as execGroup.name for execGroup in manager.execList")
+              select(required 
+                ng-disabled="manager.selected.status" 
+                id="execName" 
+                class="form-control" 
+                ng-model="manager._execGroup" 
+                ng-change="manager.selected.exec = manager._execGroup[manager._execGroup.length - 1]" 
+                ng-options="value as key for (key, value) in manager.execList")
                 option(value="") Select an executable
             
             label(for="execDate" class="col-sm-2 control-label") Date
             div(class="col-md-10")
-              select(id="execDate" class="form-control" ng-model="manager.selected.exec" ng-options="exec as (exec.uploadDate | date:'dd/MM/yyyy HH:mm:ss') for exec in manager._execGroup.list")
+              select(required 
+                ng-disabled="manager.selected.status" 
+                id="execDate" 
+                class="form-control" 
+                ng-model="manager.selected.exec" 
+                ng-options="exec as (exec.uploadDate | date:'dd/MM/yyyy HH:mm:ss') for exec in manager._execGroup track by exec.uploadDate")
                 option(value="") Select version
           fieldset(class="form-group")
-            legend(class="text-center") Schedule {{manager.schedule}}
-            label(for="scheduleFrec" class="col-sm-2 control-label") Backup
+            legend(class="text-center") Schedule
+            div(class="")
+              div(ng-repeat="schedule in manager.selected.schedules track by $index")
+                label(for="scheduleFreq-{{$index}}" class="col-sm-2 control-label") Backup
+                div(class="col-sm-4")
+                  select(id="scheduleFreq-{{$index}}" ng-model="schedule.freq" ng-change="schedule = {freq: schedule.freq}" class="form-control")
+                    option(value="every") Every
+                    option(value="once") Once a day at
+                    option(value="event") On specific event
+                div(ng-switch="schedule.freq" class="col-md-5")
+                  div(ng-switch-when="every" ng-switch="schedule.type" class="row")
+                    div(class="col-md-4")
+                      input(ng-switch-when="minute" type="number" min="1" max="59" ng-model="schedule.value" class="form-control")
+                      input(ng-switch-when="hour" type="number" min="1" max="72" ng-model="schedule.value" class="form-control")
+                    div(class="col-md-8")
+                      select(class="form-control" ng-model="schedule.type")
+                        option(value="minute") minutes
+                        option(value="hour") hours
+                  div(ng-switch-when="once" class="row")
+                    div(class="col-md-7")
+                      div(class="input-group")
+                        input(class="form-control" type="number" ng-model="schedule.hour")
+                        div(class="input-group-addon") :
+                        input(class="form-control" type="number" ng-model="schedule.minute")
+                  div(ng-switch-when="event" class="col-md-2")
+                button(class="btn btn-warning" ng-click="manager.removeSchedule($index)") Quit
+
+            label(for="scheduleFreq" class="col-sm-2 control-label") Backup
             div(class="col-sm-4")
-              select(id="scheduleFrec" ng-model="manager.schedule.frec" ng-change="manager.schedule = {frec: manager.schedule.frec}" class="form-control")
+              select(id="scheduleFreq" ng-init="manager._schedule.freq = 'every'" ng-model="manager._schedule.freq" ng-change="manager._schedule = {freq: manager._schedule.freq}" class="form-control")
                 option(value="every") Every
                 option(value="once") Once a day at
                 option(value="event") On specific event
-            div(ng-switch="manager.schedule.frec")
-              div(ng-switch-when="every" class="col-md-2" ng-switch="manager.schedule.type")
-                input(ng-switch-when="minute" type="number" min="1" max="59" ng-model="manager.schedule.minute" class="form-control")
-                input(ng-switch-when="hour" type="number" min="1" max="72" ng-model="manager.schedule.hour" class="form-control")
-              div(ng-switch-when="once" class="col-md-2")
-                div(class="form-inline")
-                  div(style="display: inline-flex;")
-                    input(class="form-control" type="number" ng-model="manager.schedule.hour")
-                    span :
-                    //div(class="input-group-addon") :
-                    input(class="form-control" type="number" ng-model="manager.schedule.minute")
-              div(class="col-md-2" ng-switch-when="event")
-
-            div(ng-if="manager.schedule.frec === 'every'" class="col-md-3")
-              select(class="form-control" ng-model="manager.schedule.type")
-                option(value="minute") minutes
-                option(value="hour") hours
+            div(ng-switch="manager._schedule.freq" class="col-md-5")
+              div(ng-switch-when="every" ng-switch="manager._schedule.type" class="row")
+                div(class="col-md-4")
+                  input(ng-switch-when="minute" type="number" min="1" max="59" ng-model="manager._schedule.value" class="form-control")
+                  input(ng-switch-when="hour" type="number" min="1" max="72" ng-model="manager._schedule.value" class="form-control")
+                div(class="col-md-8" ng-init="manager._schedule.type = 'minute'; manager._schedule.value = 15;")
+                  select(class="form-control" ng-model="manager._schedule.type")
+                    option(value="minute") minutes
+                    option(value="hour") hours
+              div(ng-switch-when="once" class="row" ng-init="manager._schedule.hour = 12; manager._schedule.minute = 30;")
+                div(class="col-md-7 input-group")
+                  input(class="form-control" type="number" ng-model="manager._schedule.hour")
+                  div(class="input-group-addon") :
+                  input(class="form-control" type="number" ng-model="manager._schedule.minute")
+              div(ng-switch-when="event" class="col-md-2")
+            button(class="btn btn-primary" ng-click="manager.addSchedule(manager._schedule)") Add
+          fieldset
+            legend
+            //div(class="row")
+              div(class="col-sm-1")
+              div(class="col-sm-10")
+            button(type="submit" ng-if="!manager.selected.status" ng-disabled="manager.selected.lock" class="btn btn-default btn-lg btn-block") Start
+            button(type="submit" ng-if="manager.selected.status" ng-disabled="manager.selected.lock" class="btn btn-warning btn-lg btn-block") Stop
+              //div(class="col-sm-1")
       div(id="mapSelectorContainer" class="row")
           
       div(id="execSelectorContainer" class="row")

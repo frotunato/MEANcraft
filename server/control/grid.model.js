@@ -99,9 +99,10 @@ function _extractFile (id, io, cb) {
 // docs = execs: [{name: 'yolo', list: []}]
 function getMapsAndBackups (callback) {
   var cursor = gridfs.files.find({'metadata.parent_id': null});
-  var docs = {execs: [], maps: []};
-  var index;
+  var docs = {execs: {}, maps: {}};
+  var name;
   var prop;
+  var obj;
   async.series([
     function (cb) {
       cursor.each(function (err, doc) {
@@ -111,17 +112,11 @@ function getMapsAndBackups (callback) {
           cb();
         } else {
           prop = (doc.metadata.type === 'exec') ? 'execs' : 'maps';
-          index = util.deepIndexOf(docs[prop], 'name', doc.metadata.name);
-          if (index === -1) {
-            docs[prop].push({name: doc.metadata.name, list: [doc]});
-          } else {
-            docs[prop][index].list.push(doc);
+          name = doc.metadata.name;
+          if (!docs[prop][name]) {
+            docs[prop][name] = [];
           }
-         // if (doc.metadata.type === 'exec') {
-         //   docs.execs.push(doc);
-         // } else if (doc.metadata.type === 'map') {
-         //   docs.maps.push(doc);
-         // }
+          docs[prop][name].push(doc);
         }
       });
     }

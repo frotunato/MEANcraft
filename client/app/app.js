@@ -16,6 +16,16 @@ angular.module('MEANcraftApp', ['ngRoute', 'MEANcraftApp.login', 'MEANcraftApp.o
         //controller: 'overviewCtrl',
         protect: true,
         resolve: {
+          initialData: function (ServerSocket, FetchData, $q) {
+            return $q(function (resolve, reject) {
+              ServerSocket.emit('info');
+              ServerSocket.once('info', function (data) {
+                console.log(data);
+                FetchData = angular.extend(FetchData, data);
+                resolve();
+              });
+            });
+          }
         }
       })
 
