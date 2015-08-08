@@ -7,6 +7,7 @@ var path = require('path');
 var rimraf = require('rimraf');
 var schedule = require('node-schedule');
 var _ = require('lodash');
+var root = '.\\temp';
 
 var gameServer = new EventEmitter();
 var _controlNsp = null;
@@ -58,7 +59,6 @@ function deployServer (execId, mapId, io, callback) {
 }
 
 function sanitizeMap (callback) {
-  var root = './temp/';
   var _getDirs = function (base, exclude, cb) {
     var path = require('path');
     async.waterfall([
@@ -396,35 +396,6 @@ function bundleServer (cb) {
 	*/
 }
 
-/*
-function addSchedule (config, fn) {
-  if (!config) return;
-  var num = 0;
-  var retry = function () {
-      if (num < 2) {
-        num ++;
-        console.log('ControlSocket [ADD SCHEDULE]', 'server is currently locked, retriying in 30 seconds (' + num + '/2)');
-        setTimeout(function () {
-          if (currentServer.lock) {
-            retry();
-          } else {
-            fn();
-          }
-        }, 30000);
-      } else {
-        console.log('ControlSocket [ADD SCHEDULE]', 'server locked for a long period of time, aborting schedule...');
-      }
-  };
-  schedule.scheduleJob(config, function () {
-    if (currentServer.lock) {
-      retry();
-    } else {
-      fn();
-    }
-  });
-}
-*/
-
 function addSchedule (config, fn, fnFail) {
   var currentTry = 0;
   var maxTries = 2;
@@ -464,7 +435,6 @@ function setSchedule (input) {
 
   }
 }
-
 
 function lock (broadcast) {
   currentServer.lock = true;
@@ -522,39 +492,8 @@ gameServer.on('stop', function (body) {
 
 module.exports = function (app, serverNsp) {
   _controlNsp = serverNsp;
-    /*
-      switch (message.command) {
-        case 'status':
-      		//gameServer.emit(message.command, message.body);
-          //currentServer.status = message.status;var a = ';[15:41:34 INFO]: '
-      		//lastCode = message.code;
-      		//serverNsp.emit('status', {status: currentServer.status, code: lastCode});
-      		break;
-      		
-      	case 'stdout':
-      		gameServer.emit(message.command, message.body);
-          //message.stdout = message.stdout.replace(/(\r\n|\n|\r)/gm,"");
-      		//console.log(message.stdout);
-      		if (currentServer.status === false && /^\[[0-9]{2}:[0-9]{2}:[0-9]{2} INFO]: Done/.test(message.stdout)) {
-      			currentServer.status = true;
-      			serverNsp.emit('status', {status: 'Online'});
-      			if (currentServer.schedule) {
-              var backupSchedule = schedule.scheduleJob()
-              serverNsp.emit('stdin', 'Scheduled backups');
-            }
-      			console.log('now is up');
-      		}
-      		//} else if (currentServer.status === false && /^\[[0-9]{2}:[0-9]{2}:[0-9]{2} INFO]: /.test(message.stdout)) {
-      		//	var chunk = message.stdout.substring(17);
-      		//	var res = chunk.match(/([0-9]{2}%)/);
-      		//	var percentage = (res === null) ? 100 : res[0];
-      		//	var reason = (res === null) ? chunk : chunk.substring(0, res[1]);
-      		//	serverNsp.emit('progress', {reason: reason, percentage: percentage});
-      		//}
-      		serverNsp.emit('stdin', message.stdout + '');
-      		break;
-      }
-    */
+  _controlNsp.emit('info', {selected: currentServer});
+
   function start (message) {
   	var socket = this;
     if (message.map === null && message.exec === null) {
@@ -594,11 +533,30 @@ module.exports = function (app, serverNsp) {
   function info () {
     var self = this;
     var obj = {selected: currentServer};
-    Model.getMapsAndBackups(function (err, docs) {
-      obj = _.merge(docs, obj);
-      console.log(obj)
+    async.parallel({
+      docs: function (pCb) {
+        Model.getMapsAndBackups(function (err, docs) {
+          //obj = _.merge(docs, obj);
+          pCb(err, docs);
+        });
+      },
+      tree: function (pCb) {
+        util.getTree(root, function (err, tree) {
+          //obj = _.merge({tree: tree}, obj);
+          //console.log(tree);
+          pCb(err, {tree: tree});
+        });
+      }
+    }, function (err, results) {
+      var temp = _.merge(results.docs, results.tree);
+      obj = _.merge(temp, obj);
       self.emit('info', obj);
+      //console.log(temp)
     });
+    //Model.getMapsAndBackups(function (err, docs) {
+    //  obj = _.merge(docs, obj);
+    //  self.emit('info', obj);
+    //});
   }
 
   function list () {

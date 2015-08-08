@@ -37,14 +37,52 @@ angular.module('MEANcraftApp.overview')
 
   .controller('managerCtrl', function ($scope, FetchData, ServerSocket)  {
     var self = this;
-    var mapGroupName = FetchData.selected.map.metadata.name;
-    var execGroupName = FetchData.selected.exec.metadata.name;
-    this.execList = FetchData.execs;
-    this.mapList = FetchData.maps;
-
-    this._mapGroup = FetchData.maps[mapGroupName];
-    this._execGroup = FetchData.execs[execGroupName];
-
+    this.navigate = {
+      current: {},
+      foward: function (thing) {
+        this.current = thing;
+        console.log(thing);
+      },
+      back: function () {
+        var that = this;
+        console.log(this.current)
+        function _search () {
+          var chunk = that.current.parent.split('\\');
+          chunk = chunk[chunk.length - 1];
+          console.log(chunk)
+          var index = deepIndexOf(FetchData.tree, 'name', chunk);
+          that.current = FetchData.tree[index];
+          //console.log(FetchData.tree[index].content)
+          
+        }
+        _search()
+        /*
+        if (this.current.parent === './temp/') {
+          self.tree = FetchData.tree;
+        }
+        */
+      }
+    };
+    (function bootstrap (initialData) {
+      self.execList = initialData.execs;
+      self.mapList = initialData.maps;
+      self._mapGroup = (initialData.selected.map) ? initialData.maps[initialData.selected.map.metadata.name] : {};
+      self._execGroup = (initialData.selected.exec) ? initialData.execs[initialData.selected.exec.metadata.name] : {};
+      self.selected = initialData.selected;
+      self.navigate.current = initialData.tree;
+    })(FetchData);
+    
+    function deepIndexOf (array, attr, value) {
+      var res = -1;
+      for (var i = array.length - 1; i >= 0; i--) {
+        if (array[i][attr] === value) {
+          res = i;
+          break;
+        }
+      }
+      return res;
+    }
+    
     this.info = {
       status: null,
       map: 'Unknown',
@@ -53,8 +91,6 @@ angular.module('MEANcraftApp.overview')
       lock: null
     };
 
-    this.selected = FetchData.selected;
-    this.selected.map = FetchData.selected.map;
     this.addSchedule = function (schedule) {
       self.selected.schedules.push(angular.copy(schedule));
     };
@@ -84,14 +120,6 @@ angular.module('MEANcraftApp.overview')
       return compiledSchedules;
     };
 
-    this.pump = function () {
-      console.log(self.selected.map)
-    }
-
-    //this.currentStatus = 'Unknown';
-    //ServerSocket.emit('list');
-    //ServerSocket.emit('info');
-    
     ServerSocket.on('err', function (message) {
       window.alert(JSON.stringify(message));
     });
@@ -108,13 +136,6 @@ angular.module('MEANcraftApp.overview')
       self.selected = angular.extend(self.selected, message);
       //var groupName = self.selected.map.metadata.name;
       if (message.maps && message.execs) {
-        
-        //self._mapGroup = self.mapList.filter(function (element) {
-        //  return element.name === message.map.metadata.name;
-        //})[0];
-        //self._execGroup = self.execList.filter(function (element) {
-        //  return element.name === message.exec.metadata.name;
-        //})[0];
         console.log('yoloing')
       }
       console.log(self.selected)

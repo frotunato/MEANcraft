@@ -13,55 +13,60 @@ tabset
     div(id="managerWrapper" class="row")
       div(class="col-md-6")
         form(class="form-horizontal" ng-submit="manager.start()")
-          fieldset(class="form-group")
+          fieldset
             legend(class="text-center") Map
-            label(for="mapName" class="col-sm-2 control-label") Name
-            div(class="col-md-10")
-              select(required 
-                ng-disabled="manager.selected.status" 
-                id="mapName" 
-                class="form-control" 
-                ng-model="manager._mapGroup" 
-                ng-change="manager.selected.map = manager._mapGroup[manager._mapGroup.length - 1]" 
-                ng-options="value as key for (key, value) in manager.mapList")
-                option(value="") -----------
-            label(for="mapDate" class="col-sm-2 control-label") Date
-            div(class="col-md-10") 
-              select(required 
-                ng-disabled="manager.selected.status" 
-                id="mapDate" 
-                ng-change="manager.pump()" 
-                class="form-control"
-                ng-model="manager.selected.map" 
-                ng-options="map as (map.uploadDate | date:'dd/MM/yyyy HH:mm:ss') for map in manager._mapGroup track by map.uploadDate")
-                option(value="") -----------
+            div(class="form-group")
+              label(for="mapName" class="col-sm-2 control-label") Name
+              div(class="col-md-10")
+                select(required 
+                  ng-disabled="manager.selected.status" 
+                  id="mapName" 
+                  class="form-control" 
+                  ng-model="manager._mapGroup" 
+                  ng-change="manager.selected.map = manager._mapGroup[manager._mapGroup.length - 1]" 
+                  ng-options="value as key for (key, value) in manager.mapList")
+                  option(value="") Select a map
+            div(class="form-group")
+              label(for="mapDate" class="col-sm-2 control-label") Date
+              div(class="col-md-10") 
+                select(required 
+                  ng-disabled="manager.selected.status" 
+                  id="mapDate" 
+                  ng-change="" 
+                  class="form-control"
+                  ng-model="manager.selected.map" 
+                  ng-options="map as (map.uploadDate | date:'dd/MM/yyyy HH:mm:ss') for map in manager._mapGroup track by map.uploadDate")
+                  option(value="") Select version
               
-          fieldset(class="form-group")
+          fieldset
             legend(class="text-center") Executable
-            label(for="execName" class="col-sm-2 control-label") Name
-            div(class="col-md-10")
-              select(required 
-                ng-disabled="manager.selected.status" 
-                id="execName" 
-                class="form-control" 
-                ng-model="manager._execGroup" 
-                ng-change="manager.selected.exec = manager._execGroup[manager._execGroup.length - 1]" 
-                ng-options="value as key for (key, value) in manager.execList")
-                option(value="") Select an executable
+            div(class="form-group")
+              label(for="execName" class="col-sm-2 control-label") Name
+              div(class="col-md-10")
+                select(required 
+                  ng-disabled="manager.selected.status" 
+                  id="execName" 
+                  class="form-control" 
+                  ng-model="manager._execGroup" 
+                  ng-change="manager.selected.exec = manager._execGroup[manager._execGroup.length - 1]" 
+                  ng-options="value as key for (key, value) in manager.execList")
+                  option(value="") Select an executable
             
-            label(for="execDate" class="col-sm-2 control-label") Date
-            div(class="col-md-10")
-              select(required 
-                ng-disabled="manager.selected.status" 
-                id="execDate" 
-                class="form-control" 
-                ng-model="manager.selected.exec" 
-                ng-options="exec as (exec.uploadDate | date:'dd/MM/yyyy HH:mm:ss') for exec in manager._execGroup track by exec.uploadDate")
-                option(value="") Select version
+            div(class="form-group")
+              label(for="execDate" class="col-sm-2 control-label") Date
+              div(class="col-md-10")
+                select(required 
+                  ng-disabled="manager.selected.status" 
+                  id="execDate" 
+                  class="form-control" 
+                  ng-model="manager.selected.exec" 
+                  ng-options="exec as (exec.uploadDate | date:'dd/MM/yyyy HH:mm:ss') for exec in manager._execGroup track by exec.uploadDate")
+                  option(value="") Select version
+          
           fieldset(class="form-group")
             legend(class="text-center") Schedule
-            div(class="")
-              div(ng-repeat="schedule in manager.selected.schedules track by $index")
+            div
+              div(ng-repeat="schedule in manager.selected.schedules track by $index" class="form-group")
                 label(for="scheduleFreq-{{$index}}" class="col-sm-2 control-label") Backup
                 div(class="col-sm-4")
                   select(id="scheduleFreq-{{$index}}" ng-model="schedule.freq" ng-change="schedule = {freq: schedule.freq}" class="form-control")
@@ -84,7 +89,7 @@ tabset
                         div(class="input-group-addon") :
                         input(class="form-control" type="number" ng-model="schedule.minute")
                   div(ng-switch-when="event" class="col-md-2")
-                button(class="btn btn-warning" ng-click="manager.removeSchedule($index)") Quit
+                button(type="button" class="btn btn-warning" ng-click="manager.removeSchedule($index)") Quit
 
             label(for="scheduleFreq" class="col-sm-2 control-label") Backup
             div(class="col-sm-4")
@@ -107,7 +112,7 @@ tabset
                   div(class="input-group-addon") :
                   input(class="form-control" type="number" ng-model="manager._schedule.minute")
               div(ng-switch-when="event" class="col-md-2")
-            button(class="btn btn-primary" ng-click="manager.addSchedule(manager._schedule)") Add
+            button(type="button" class="btn btn-primary" ng-click="manager.addSchedule(manager._schedule)") Add
           fieldset
             legend
             //div(class="row")
@@ -116,10 +121,12 @@ tabset
             button(type="submit" ng-if="!manager.selected.status" ng-disabled="manager.selected.lock" class="btn btn-default btn-lg btn-block") Start
             button(type="submit" ng-if="manager.selected.status" ng-disabled="manager.selected.lock" class="btn btn-warning btn-lg btn-block") Stop
               //div(class="col-sm-1")
-      div(id="mapSelectorContainer" class="row")
-          
-      div(id="execSelectorContainer" class="row")
-        
+      div(class="col-md-6")
+        h4(class="text-center") Files
+        button(type="button" ng-click="manager.navigate.back()") Back
+        ul
+          li(ng-repeat="thing in manager.navigate.current.content track by $index")
+            a(href="" ng-click="manager.navigate.foward(thing)") {{thing.name}}
     //b Backup schedule
     //input(type="checkbox" id="scheduleEnabler" ng-model="manager._schedule" ng-false-value="false" ng-true-value="true")
     //label(for="scheduleEnabler") {{manager._schedule}}

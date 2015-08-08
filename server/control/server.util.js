@@ -116,8 +116,54 @@ function setServerProperty (filePath, prop, value, callback) {
   });
 }
 
+function getTree (base, walkCb) {
+  function _readDirectory (root, rCb) {
+    async.waterfall([
+    function (wCb) {
+      fs.readdir(root, wCb);
+    },
+    function (items, wCb) {
+      var pool = [];
+      var _processItem = function (item, cb) {
+        function _isValidExt (ext) {
+          var validExts = ['.yml', '.properties', '.txt', '.json', '.log'];
+          return (validExts.indexOf(ext) === -1) ? false : true;
+        }
+        var element = {};
+        fs.stat(path.join(root, item), function (err, stats) {
+          element.name = item;
+          element.parent = root;
+          if (stats.isFile()) {
+            var ext = path.extname(item);
+            element.readable = (_isValidExt(ext)) ? true : false;
+            pool.push(element);
+            cb();
+          } else if (stats.isDirectory()) {
+            _readDirectory(path.join(root, item), function (err, data) {
+              element.isDirectory = true;
+              element.content = data;
+              pool.push(element);
+              cb();
+            });
+          }
+        });
+      };
+      async.each(items, _processItem, function (err) {
+        wCb(err, pool);
+      });
+    }], 
+    function (err, pool) {
+      rCb(err, pool);
+    });
+  }
+  _readDirectory(base, function (err, data) {
+    walkCb(err, {name: base, parent: '', isDirectory: true, content: data});
+  });
+}
+
 module.exports.getFileType = getFileType;
 module.exports.deepIndexOf = deepIndexOf;
 module.exports.base64Encode = base64Encode;
 module.exports.getServerProperties = getServerProperties;
 module.exports.setServerProperty = setServerProperty;
+module.exports.getTree = getTree;

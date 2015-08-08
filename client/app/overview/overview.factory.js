@@ -4,6 +4,7 @@ angular.module('MEANcraftApp.overview')
     return {
       maps: [],
       execs: [],
-      selected: {}
+      selected: {},
+      tree: []
     };
   });

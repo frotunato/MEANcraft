@@ -57,11 +57,6 @@ function getHwUsage () {
 	};
 }
 */
-var schedule = require('node-schedule');
-
-var currentServer = {
-	lock: true
-};
 /*
 function addSchedule (config, fn) {
   if (!config) return;
@@ -91,50 +86,120 @@ function addSchedule (config, fn) {
   });
 }
 */
-var alphaTime = Date.now();
+var fs = require('fs');
+var async = require('async');
+var path = require('path');
 
-function addSchedule (config, fn, fnFail) {
-	var currentTry = 0;
-	var maxTries = 2;
-	var job = schedule.scheduleJob('' + Date.now(), config, function () {
-		tryIt();
-	});
-	console.log(schedule.scheduledJobs);
-	function tryIt () {
-		if (currentTry < maxTries) {
-			if (currentServer.lock) {
-				currentTry ++;
-				console.log('ControlSocket [ADD SCHEDULE]', 'server is currently locked, retrying in 5 seconds (' + currentTry + '/' + maxTries + ')');
-				if (currentTry >= maxTries) {
-					tryIt();
-				} else {
-					setTimeout(tryIt, 5000);
-				}
-			} else {
-				fn();
-			}
-		} else {
-			console.log('ControlSocket [ADD SCHEDULE]', 'server locked for a long period of time, aborting schedule...');
-			fnFail(job);
-		}
-	}
+
+/*
+function getTree (base, walkCb) {
+  function _readDirectory (root, rCb) {
+    async.waterfall([
+    function (wCb) {
+      fs.readdir(root, wCb);
+    },
+    function (items, wCb) {
+      var pool = {};
+      //if (base === root) {
+      //  pool.push({name: 'temp', parent: '.\\', content: items})        
+      //}
+      var _processItem = function (item, cb) {
+        function _getExt (filename) {
+          var index = filename.lastIndexOf('.');
+          var res = (index === -1) ? null : filename.substring(index, filename.length);
+          return res;
+        }
+        function _isValidExt (ext) {
+          var validExts = ['.yml', '.properties', '.txt', '.json', '.log'];
+          return (validExts.indexOf(ext) === -1) ? false : true;
+        }
+        var element = {};
+        fs.stat(root + '/' + item, function (err, stats) {
+          element.name = item;
+          element.parent = root;
+          if (!pool[root]) {
+            pool[root] = [];
+            console.log(pool)
+          }
+          if (stats.isFile()) {
+            var ext = _getExt(item);
+            if (_isValidExt(ext)) {
+              element.readable = true;          
+            } else {
+              element.readable = false;
+            }
+            pool[root].push(element);
+            cb();
+
+          } else if (stats.isDirectory()) {
+            _readDirectory(path.join(root, item), function (err, data) {
+              element.isDirectory = true;
+              element.content = data;
+              pool[root].push(element);
+              cb();
+            });
+          }
+        });
+      };
+      async.each(items, _processItem, function (err) {
+        wCb(err, pool);
+      });
+    }], 
+    function (err, pool) {
+      rCb(err, pool);
+    });
+  }
+  _readDirectory(base, function (err, data) {
+    walkCb(err, data);
+  });
+}
+*/
+
+function getTree (base, walkCb) {
+  function _readDirectory (root, rCb) {
+    async.waterfall([
+    function (wCb) {
+      fs.readdir(root, wCb);
+    },
+    function (items, wCb) {
+      var pool = [];
+      var _processItem = function (item, cb) {
+        function _isValidExt (ext) {
+          var validExts = ['.yml', '.properties', '.txt', '.json', '.log'];
+          return (validExts.indexOf(ext) === -1) ? false : true;
+        }
+        var element = {};
+        fs.stat(path.join(root, item), function (err, stats) {
+          element.name = item;
+          element.parent = root;
+          if (stats.isFile()) {
+            var ext = path.extname(item);
+            element.readable = (_isValidExt(ext)) ? true : false;
+            pool.push(element);
+            cb();
+          } else if (stats.isDirectory()) {
+            _readDirectory(path.join(root, item), function (err, data) {
+              element.isDirectory = true;
+              element.content = data;
+              pool.push(element);
+              cb();
+            });
+          }
+        });
+      };
+      async.each(items, _processItem, function (err) {
+        wCb(err, pool);
+      });
+    }], 
+    function (err, pool) {
+      rCb(err, pool);
+    });
+  }
+  _readDirectory(base, function (err, data) {
+    walkCb(err, {name: base, parent: '', isDirectory: true, content: data});
+  });
 }
 
-function aa () {
-	console.log('yolo');
-}
-
-addSchedule('*/1 * * * *', aa, function (job) {
-	console.log('cancelled job');
-	job.cancel();
-});
-
-addSchedule('*/1 * * * *', aa, function (job) {
-	console.log('cancelled job');
-	job.cancel();
-});
-
-addSchedule('*/1 * * * *', aa, function (job) {
-	console.log('cancelled job');
-	job.cancel();
+getTree('./temp', function (err, data) {
+  console.log(err, data);
 });
