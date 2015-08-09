@@ -170,8 +170,14 @@ function getTree (base, walkCb) {
         }
         var element = {};
         fs.stat(path.join(root, item), function (err, stats) {
+          //console.log(stats)
           element.name = item;
           element.parent = root;
+          element.metadata = {
+            atime: stats.atime,
+            mtime: stats.mtime,
+            size: stats.size
+          };
           if (stats.isFile()) {
             var ext = path.extname(item);
             element.readable = (_isValidExt(ext)) ? true : false;

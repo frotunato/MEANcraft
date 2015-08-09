@@ -4,6 +4,7 @@ var fileType = require('file-type');
 var tar = require('tar-fs');
 var rimraf = require('rimraf');
 var path = require('path');
+var du = require('du');
 
 function deepIndexOf (array, attr, value) {
   var res = -1;
@@ -131,19 +132,29 @@ function getTree (base, walkCb) {
         }
         var element = {};
         fs.stat(path.join(root, item), function (err, stats) {
-          element.name = item;
-          element.parent = root;
+          element = {
+            name: item,
+            parent: root,
+            metadata: {
+              atime: stats.atime,
+              mtime: stats.mtime
+            }
+          };
           if (stats.isFile()) {
             var ext = path.extname(item);
+            element.metadata.size = stats.size;
             element.readable = (_isValidExt(ext)) ? true : false;
             pool.push(element);
             cb();
           } else if (stats.isDirectory()) {
             _readDirectory(path.join(root, item), function (err, data) {
-              element.isDirectory = true;
-              element.content = data;
-              pool.push(element);
-              cb();
+              du(path.join(root, item), function (err, size) {
+                element.isDirectory = true;
+                element.content = data;
+                element.metadata.size = size;
+                pool.push(element);
+                cb();
+              });
             });
           }
         });

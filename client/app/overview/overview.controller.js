@@ -39,28 +39,18 @@ angular.module('MEANcraftApp.overview')
     var self = this;
     this.navigate = {
       current: {},
+      last: [],
       foward: function (thing) {
+        this.last.push(this.current);
         this.current = thing;
-        console.log(thing);
       },
       back: function () {
-        var that = this;
-        console.log(this.current)
-        function _search () {
-          var chunk = that.current.parent.split('\\');
-          chunk = chunk[chunk.length - 1];
-          console.log(chunk)
-          var index = deepIndexOf(FetchData.tree, 'name', chunk);
-          that.current = FetchData.tree[index];
-          //console.log(FetchData.tree[index].content)
-          
-        }
-        _search()
-        /*
-        if (this.current.parent === './temp/') {
-          self.tree = FetchData.tree;
-        }
-        */
+        if (this.last.length === 0) return;
+        this.current = this.last.splice(-1, 1)[0];
+      },
+      read: function (file) {
+        if (!file || !file.readable) return;
+        ServerSocket.emit('read', file);
       }
     };
     (function bootstrap (initialData) {
@@ -72,23 +62,17 @@ angular.module('MEANcraftApp.overview')
       self.navigate.current = initialData.tree;
     })(FetchData);
     
-    function deepIndexOf (array, attr, value) {
-      var res = -1;
-      for (var i = array.length - 1; i >= 0; i--) {
-        if (array[i][attr] === value) {
-          res = i;
-          break;
-        }
-      }
-      return res;
-    }
-    
     this.info = {
       status: null,
       map: 'Unknown',
       exec: 'Unknown',
       uptime: 'Unknown',
       lock: null
+    };
+
+    this.preview = function () {
+      console.log(self.selected.exec._id);
+      ServerSocket.emit('preview', self.selected.exec._id);
     };
 
     this.addSchedule = function (schedule) {
@@ -132,15 +116,17 @@ angular.module('MEANcraftApp.overview')
     
     ServerSocket.on('info', function (message) {
       console.log(message)
-      self.info = angular.extend(self.info, message);
+      if (message.tree) self.navigate.current = message.tree;
+      //self.info = angular.extend(self.info, message);
       self.selected = angular.extend(self.selected, message);
+      
       //var groupName = self.selected.map.metadata.name;
-      if (message.maps && message.execs) {
-        console.log('yoloing')
-      }
       console.log(self.selected)
     });
 
+    ServerSocket.on('read', function (message) {
+      console.log(message);
+    })
 
     this.options = {};
 

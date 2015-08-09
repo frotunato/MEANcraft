@@ -7,7 +7,7 @@ var path = require('path');
 var rimraf = require('rimraf');
 var schedule = require('node-schedule');
 var _ = require('lodash');
-var root = '.\\temp';
+var root = './temp';
 
 var gameServer = new EventEmitter();
 var _controlNsp = null;
@@ -19,10 +19,12 @@ var currentServer = {
   lock: false
 };
 
+var previewPool = [];
+
 function deployServer (execId, mapId, io, callback) {
   async.waterfall([
     function (wCb) {
-      Model.extractFile(mapId, io, wCb);
+      Model.extractFile(mapId, {path: root ,io: io}, wCb);
     },
     function (doc, wCb) {
     	sanitizeMap(function (err, matches, sMapRemoved) {
@@ -32,13 +34,13 @@ function deployServer (execId, mapId, io, callback) {
     	});
     },
     function (matches, sMapRemoved, wCb) {
-      Model.extractFile(execId, io, function (err, doc) {
+      Model.extractFile(execId, {path: root ,io: io}, function (err, doc) {
       	var levelName = matches.sort(function (a, b) {
       		return a.length - b.length;
       	});
       	console.log('levelName', levelName);
-      	util.setServerProperty('./temp/', 'level-name', levelName[0], function (err) {
-      		fs.writeFile('./temp/eula.txt', 'eula=true', function () {
+      	util.setServerProperty(root, 'level-name', levelName[0], function (err) {
+      		fs.writeFile(path.join(root, '/eula.txt'), 'eula=true', function () {
       			currentServer.exec = doc;
       			wCb(err, matches, sMapRemoved);
       		});
@@ -130,7 +132,6 @@ function sanitizeMap (callback) {
 }
 
 function sanitizeExec (exclude, thingsToRemove, callback) {
-  var root = './temp/';
   var _getExec = function (files, callback) {
     var _isExec = function (file, fCb) {
       var extension = file.slice(file.lastIndexOf('.'));
@@ -296,14 +297,13 @@ function launchServer (exec, opts, callback) {
 	    procName: 'java', 
 	    procArgs: ['-jar', exec, 'nogui'], 
 	    procOptions: {
-	      cwd: './temp'
+	      cwd: root
 	    }
 	  }
 	});
 }
 
 function bundleServer (cb) {
-	var root = './temp/';
 	var _getWriteStream = function (elements, callback) {
 	  var tar = require('tar-fs');
 	  var lz4 = require('lz4');
@@ -572,11 +572,32 @@ module.exports = function (app, serverNsp) {
   	process.send({command: 'stdin', body: message});
   }
 
+  function read (file) {
+    var socket = this;
+    if (!file) return;
+    console.log(file);
+    fs.readFile(path.join(file.parent, file.name), 'utf8', function (err, data) {
+      socket.emit('read', data);
+    });
+  }
+
+  function preview (exec) {
+    var socket = this;
+    var dir = path.join('./preview', Date.now());
+    Model.extractFile(exec, {path: dir}, function (err, file) {
+      util.getTree('./preview', function (err, tree) {
+        socket.emit('info', {tree: tree});
+      });
+    });
+  }
+
   return {
     start: start,
     stop: stop,
     info: info,
     list: list,
-    chat: chat
+    chat: chat,
+    read: read,
+    preview: preview
   };
 };

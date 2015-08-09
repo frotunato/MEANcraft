@@ -41,6 +41,7 @@ tabset
           fieldset
             legend(class="text-center") Executable
             div(class="form-group")
+              button(type="button" ng-click="manager.preview()") Preview
               label(for="execName" class="col-sm-2 control-label") Name
               div(class="col-md-10")
                 select(required 
@@ -125,8 +126,16 @@ tabset
         h4(class="text-center") Files
         button(type="button" ng-click="manager.navigate.back()") Back
         ul
-          li(ng-repeat="thing in manager.navigate.current.content track by $index")
-            a(href="" ng-click="manager.navigate.foward(thing)") {{thing.name}}
+          li(ng-repeat="thing in manager.navigate.current.content track by $index" ng-switch="thing.readable")
+            div(ng-switch-when="undefined")
+              span(class="glyphicon glyphicon-folder-open")
+              a(href="" ng-click="manager.navigate.foward(thing)") {{::thing.name}}
+            div(ng-switch-when="true")
+              span(class="glyphicon glyphicon-pencil")
+              a(href="" ng-click="manager.navigate.read(thing)") {{::thing.name}}
+            div(ng-switch-when="false")
+              span(class="glyphicon glyphicon-file")
+              {{::thing.name}}
     //b Backup schedule
     //input(type="checkbox" id="scheduleEnabler" ng-model="manager._schedule" ng-false-value="false" ng-true-value="true")
     //label(for="scheduleEnabler") {{manager._schedule}}

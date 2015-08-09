@@ -13,3 +13,4 @@ server/temp
 *.tar
 *.gz
 *.jar
+preview/

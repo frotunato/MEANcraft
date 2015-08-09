@@ -56,47 +56,58 @@ function _getReadStreamFromId (id, cb) {
   });
 }
 
-function _extractFile (id, io, cb) {
+function _extractFile (id, config, cb) {
   var _getWriteStream = function (readStream, ext) {
     var decoderStream = null;
     var writeStream = null;
-    if (ext === 'gz') {
-      decoderStream = zlib.Gunzip();
-      writeStream = tar.extract('./temp/');
-    } else if (ext === 'zip') {
-      writeStream = unzip.Extract({path: './temp/'});
-      readStream.pipe(writeStream);
-      return writeStream;
-    } else if (ext === 'lz4') {
-      decoderStream = lz4.createDecoderStream();
-      writeStream = tar.extract('./temp/');
+    switch (ext) {
+      case 'gz':
+        decoderStream = zlib.Gunzip();
+        writeStream = tar.extract(config.path);
+        break;
+      case 'zip':
+        writeStream = unzip.Extract({path: config.path});
+        readStream.pipe(writeStream);
+        return writeStream;
+      case 'lz4':
+        decoderStream = lz4.createDecoderStream();
+        writeStream = tar.extract(config.path);
     }
     readStream.pipe(decoderStream).pipe(writeStream);
     return writeStream;
   };
   var _getEndEvent = function (ext) {
     var res = null;
-    if (ext === 'gz' || ext === 'lz4') {
-      res = 'finish';
-    } else if (ext === 'zip') {
-      res = 'close';
+    switch (ext) {
+      case 'gz':
+      case 'lz4':
+        res = 'finish';
+        break;
+      case 'zip':
+        res = 'close';
+        break;
     }
     return res;
   };
   _getReadStreamFromId(id, function (err, readStream, file) {
-    var str = progress({length: file.length, time: 500});
-    var writeStream = _getWriteStream(readStream.pipe(str), file.metadata.ext);
+    var writeStream = _getWriteStream(readStream, file.metadata.ext);
     var ev = _getEndEvent(file.metadata.ext);
-    str.on('progress', function (progress) {
-      io.emit('chat', '[MEANcraft] Decompressing ' + file.metadata.type + ' ' + Math.ceil(progress.percentage) + '%');
-    });
+    
+    if (config.io) {
+      var str = progress({length: file.length, time: 500});
+      writeStream = _getWriteStream(readStream.pipe(str), file.metadata.ext);
+      str.on('progress', function (progress) {
+        config.io.emit('chat', '[MEANcraft] Decompressing ' + file.metadata.type + ' ' + Math.ceil(progress.percentage) + '%');
+      });
+    }
+    
     writeStream.once(ev, function () {
       console.log('finished', id);
       cb(err, file);
     });
   });
 }
-// docs = execs: [{name: 'yolo', list: []}]
+
 function getMapsAndBackups (callback) {
   var cursor = gridfs.files.find({'metadata.parent_id': null});
   var docs = {execs: {}, maps: {}};
