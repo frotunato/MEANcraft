@@ -206,6 +206,36 @@ function getTree (base, walkCb) {
   });
 }
 
-getTree('./temp', function (err, data) {
-  console.log(err, data);
-});
+/*
+  getTree('./temp', function (err, data) {
+    console.log(err, data);
+  });
+*/
+
+
+
+function applyChanges (changes, cb) {
+  var _applyChange = function (item, eCb) {
+    fs.writeFile(path.join(item.parent, item.name), item.body, function () {
+      console.log(path.join(item.parent, item.name));
+      eCb();
+    });
+  };
+  async.each(changes, _applyChange, function (err) {
+    cb();
+  });
+}
+
+applyChanges([
+          {
+            name: 'banned-ips.json',
+            parent: 'preview\\' + 'aa1',
+            body: 'amaworrior'
+          }, {
+            name: 'bukkit.yml',
+            parent: 'preview\\' + 'aa1',
+            body: 'amaworrior2'
+          }], function () {
+
+  });
+

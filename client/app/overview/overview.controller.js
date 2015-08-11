@@ -116,17 +116,18 @@ angular.module('MEANcraftApp.overview')
     
     ServerSocket.on('info', function (message) {
       console.log(message)
-      if (message.tree) self.navigate.current = message.tree;
+      //if (message.tree) self.navigate.current = message.tree;
       //self.info = angular.extend(self.info, message);
-      self.selected = angular.extend(self.selected, message);
+      console.log('receiving', message);
+      self = angular.extend(self, message);
       
       //var groupName = self.selected.map.metadata.name;
-      console.log(self.selected)
+      //console.log(self.selected)
     });
 
     ServerSocket.on('read', function (message) {
       console.log(message);
-    })
+    });
 
     this.options = {};
 
@@ -134,11 +135,29 @@ angular.module('MEANcraftApp.overview')
       //console.log(self.exec, self.map);
       //if (!self.exec.selected._id || !self.map.selected._id) return;
       //var schedule = (self._schedule) ? self.selected.schedule : null;
-      ServerSocket.emit('start', {
+      var obj = {
         exec: self.selected.exec._id,
         map: self.selected.map._id,
-        schedules: self.compileSchedules()
-      });
+        schedules: self.compileSchedules(),
+      };
+      if (self.pToken) {
+        obj.exec = {
+          _id: self.selected.exec._id,
+          pToken: self.pToken,
+          changes: [
+          {
+            name: 'banned-ips.json',
+            parent: 'preview\\' + self.pToken,
+            body: 'amaworrior'
+          }, {
+            name: 'bukkit.yml',
+            parent: 'preview\\' + self.pToken,
+            body: 'amaworrior2'
+          }]
+        };
+      }
+      console.log(obj);
+      ServerSocket.emit('start', obj);
     };
 
     this.stop = function () {

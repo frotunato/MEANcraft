@@ -5,6 +5,7 @@ var tar = require('tar-fs');
 var rimraf = require('rimraf');
 var path = require('path');
 var du = require('du');
+var fse = require('fs-extra');
 
 function deepIndexOf (array, attr, value) {
   var res = -1;
@@ -172,9 +173,23 @@ function getTree (base, walkCb) {
   });
 }
 
+function applyChanges (changes, cb) {
+  console.log('changing', changes);
+  var _applyChange = function (item, eCb) {
+    console.log(typeof item.parent, typeof item.name);
+    fs.writeFile(path.join(item.parent, item.name), item.body, function (err) {
+      eCb(err);
+    });
+  };
+  async.each(changes, _applyChange, function (err) {
+    cb(err);
+  });
+}
+
 module.exports.getFileType = getFileType;
 module.exports.deepIndexOf = deepIndexOf;
 module.exports.base64Encode = base64Encode;
 module.exports.getServerProperties = getServerProperties;
 module.exports.setServerProperty = setServerProperty;
 module.exports.getTree = getTree;
+module.exports.applyChanges = applyChanges;

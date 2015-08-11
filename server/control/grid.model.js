@@ -57,6 +57,7 @@ function _getReadStreamFromId (id, cb) {
 }
 
 function _extractFile (id, config, cb) {
+  if (!id) return;
   var _getWriteStream = function (readStream, ext) {
     var decoderStream = null;
     var writeStream = null;

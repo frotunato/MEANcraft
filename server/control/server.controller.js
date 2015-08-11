@@ -8,9 +8,10 @@ var rimraf = require('rimraf');
 var schedule = require('node-schedule');
 var _ = require('lodash');
 var root = './temp';
-
+var previewPool = [];
 var gameServer = new EventEmitter();
 var _controlNsp = null;
+var fse = require('fs-extra');
 var currentServer = {
   map: null, 
   exec: null, 
@@ -19,32 +20,41 @@ var currentServer = {
   lock: false
 };
 
-var previewPool = [];
-
 function deployServer (execId, mapId, io, callback) {
   async.waterfall([
     function (wCb) {
-      Model.extractFile(mapId, {path: root ,io: io}, wCb);
+      Model.extractFile(mapId, {path: root, io: io}, wCb);
     },
     function (doc, wCb) {
     	sanitizeMap(function (err, matches, sMapRemoved) {
-    		currentServer.map = doc;
-    		io.emit('stdin', '[MEANcraft] Sanitized map');
-    		wCb(err, matches, sMapRemoved);
-    	});
+        currentServer.map = doc;
+        io.emit('stdin', '[MEANcraft] Sanitized map');
+        wCb(err, matches, sMapRemoved);
+      });
     },
     function (matches, sMapRemoved, wCb) {
-      Model.extractFile(execId, {path: root ,io: io}, function (err, doc) {
-      	var levelName = matches.sort(function (a, b) {
-      		return a.length - b.length;
-      	});
-      	console.log('levelName', levelName);
-      	util.setServerProperty(root, 'level-name', levelName[0], function (err) {
-      		fs.writeFile(path.join(root, '/eula.txt'), 'eula=true', function () {
-      			currentServer.exec = doc;
-      			wCb(err, matches, sMapRemoved);
-      		});
-      	});
+      var changes = [{parent: root, name: 'eula.txt', body: 'eula=true'}];
+      console.log('EXEC ID', execId);
+      if (_.isPlainObject(execId) && execId.pToken && Array.isArray(execId.changes)) {
+        changes.concat(execId.changes).reverse();
+        Model.getFileData(execId._id, function (err, doc) {
+          fse.move(path.join('./preview', execId.pToken), root, function (err) {
+            wCb(err, changes, doc, matches, sMapRemoved);
+          });
+        });
+      } else {
+        Model.extractFile(execId, {path: root, io: io}, function (err, doc) {
+          wCb(err, changes, doc, matches, sMapRemoved);          
+        });
+      }
+    },
+    function (changes, doc, matches, sMapRemoved, wCb) {
+      var levelName = matches.sort(function (a, b) { return a.length - b.length;});
+      util.applyChanges(changes, function (err) {
+        util.setServerProperty(root, 'level-name', levelName[0], function (err) {
+          currentServer.exec = doc;
+          wCb(err, matches, sMapRemoved);
+        });
       });
     },
     function (matches, sMapRemoved, wCb) {
@@ -493,7 +503,7 @@ gameServer.on('stop', function (body) {
 module.exports = function (app, serverNsp) {
   _controlNsp = serverNsp;
   _controlNsp.emit('info', {selected: currentServer});
-
+  console.log('emitting', currentServer);
   function start (message) {
   	var socket = this;
     if (message.map === null && message.exec === null) {
@@ -504,14 +514,16 @@ module.exports = function (app, serverNsp) {
   		socket.emit('err', 'There is already a server starting');
   	} else {
   		lock(true);
+      console.log('starting', message);
+      var execParams = (message.changes) ? {_id: message.exec, changes: message.changes, pToken: message.pToken} : message.exec;
       currentServer.schedules = message.schedules;
       console.log('ControlSocket [START]', message);
-      deployServer(message.exec, message.map, serverNsp, function (err, exec) {
+      deployServer(execParams, message.map, serverNsp, function (err, exec) {
         if (err) return socket.emit('err', err);
-  			launchServer(exec);
-  			serverNsp.emit('stdin', '[MEANcraft] Bootstrapping server');
-  		});
-  	}
+        launchServer(exec);
+        serverNsp.emit('stdin', '[MEANcraft] Bootstrapping server');
+      });
+    }
   }
 
   function stop () {
@@ -532,7 +544,9 @@ module.exports = function (app, serverNsp) {
 
   function info () {
     var self = this;
-    var obj = {selected: currentServer};
+    var obj = {
+      selected: currentServer
+    };
     async.parallel({
       docs: function (pCb) {
         Model.getMapsAndBackups(function (err, docs) {
@@ -583,10 +597,11 @@ module.exports = function (app, serverNsp) {
 
   function preview (exec) {
     var socket = this;
-    var dir = path.join('./preview', Date.now());
+    var pToken = 'PE' +  Date.now();
+    var dir = path.join('./preview', pToken);
     Model.extractFile(exec, {path: dir}, function (err, file) {
       util.getTree('./preview', function (err, tree) {
-        socket.emit('info', {tree: tree});
+        socket.emit('info', {tree: tree, pToken: pToken});
       });
     });
   }

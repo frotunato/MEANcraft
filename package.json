@@ -35,6 +35,7 @@
     "progress-stream": "latest",
     "du": "latest",
     "node-schedule": "latest",
-    "lz4": "latest"
+    "lz4": "latest",
+    "fs-extra": "latest"
   }
 }
