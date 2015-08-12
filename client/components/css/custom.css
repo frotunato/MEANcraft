@@ -4,3 +4,9 @@
   font-weight: 800;
   font-size: small;
 }
+
+.left-container {
+  color: #333;
+  border: 0;
+  border-right: 1px solid #e5e5e5;
+}

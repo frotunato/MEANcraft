@@ -1,16 +1,17 @@
 tabset
-  tab(id="chatBox" active heading="Chat" ng-controller="chatCtrl as chat")
-    div(class="panel panel-default" scroll-glue style="overflow-y: auto; margin: 7px; background-color: ghostwhite; min-height: 350px; max-height: 400px;")
-      ul(class="list-group" style="min-height: 100%;")
-        li(ng-repeat="line in chat.pool track by $index" class="chat-line") {{line}}
-    div(class="form-horizontal" style="margin: 7px;")
-      div(class="form-group")
-        div(class="col-md-1")
-          button(type="button" class="btn btn-default" ng-model="chat.prefix" btn-checkbox btn-checkbox-true="true" btn-checkbox-false="false") /say
-        div(class="col-md-11")
-          input(id="chatInput" type="text" class="form-control" ng-model="chat.message" ng-keyup="$event.keyCode == 13 ? chat.send() : null") 
-  tab(id="managerBox" heading="Manager" ng-controller="managerCtrl as manager")  
-    div(id="managerWrapper" class="row")
+  tab(id="chatBox" active heading="Chat")
+    div(id="chatWrapper" ng-controller="chatCtrl as chat")
+      div(class="panel panel-default" scroll-glue style="overflow-y: auto; margin: 7px; background-color: ghostwhite; min-height: 350px; max-height: 400px;")
+        ul(class="list-group" style="min-height: 100%;")
+          li(ng-repeat="line in chat.pool track by $index" class="chat-line") {{line}}
+      div(class="form-horizontal" style="margin: 7px;")
+        div(class="form-group")
+          div(class="col-md-1")
+            button(type="button" class="btn btn-default" ng-model="chat.prefix" btn-checkbox btn-checkbox-true="true" btn-checkbox-false="false") /say
+          div(class="col-md-11")
+            input(id="chatInput" type="text" class="form-control" ng-model="chat.message" ng-keyup="$event.keyCode == 13 ? chat.send() : null") 
+  tab(id="managerBox" heading="Manager")  
+    div(id="managerWrapper" ng-controller="managerCtrl as manager" class="row")
       div(class="col-md-6")
         form(class="form-horizontal" ng-submit="manager.start()")
           fieldset
@@ -37,7 +38,6 @@ tabset
                   ng-model="manager.selected.map" 
                   ng-options="map as (map.uploadDate | date:'dd/MM/yyyy HH:mm:ss') for map in manager._mapGroup track by map.uploadDate")
                   option(value="") Select version
-              
           fieldset
             legend(class="text-center") Executable
             div(class="form-group")
@@ -63,7 +63,6 @@ tabset
                   ng-model="manager.selected.exec" 
                   ng-options="exec as (exec.uploadDate | date:'dd/MM/yyyy HH:mm:ss') for exec in manager._execGroup track by exec.uploadDate")
                   option(value="") Select version
-          
           fieldset(class="form-group")
             legend(class="text-center") Schedule
             div
@@ -116,72 +115,73 @@ tabset
             button(type="button" class="btn btn-primary" ng-click="manager.addSchedule(manager._schedule)") Add
           fieldset
             legend
-            //div(class="row")
-              div(class="col-sm-1")
-              div(class="col-sm-10")
             button(type="submit" ng-if="!manager.selected.status" ng-disabled="manager.selected.lock" class="btn btn-default btn-lg btn-block") Start
             button(type="submit" ng-if="manager.selected.status" ng-disabled="manager.selected.lock" class="btn btn-warning btn-lg btn-block") Stop
-              //div(class="col-sm-1")
-      div(class="col-md-6")
-        h4(class="text-center") Files
-        button(type="button" ng-click="manager.navigate.back()") Back
-        ul
-          li(ng-repeat="thing in manager.navigate.current.content track by $index" ng-switch="thing.readable")
+      
+      div(class="col-md-6" ng-controller="explorerCtrl as explorer")
+        h4(class="text-center") Files {{explorer.pToken}}
+        button(type="button" ng-click="explorer.back()") Back
+        
+        div(id="explorerHeader" class="row")
+          div(class="col-xs-8") Name
+          div(class="col-xs-3 text-center") Last modified
+        
+        ul(class="row list-group" ng-show="!explorer.fileContent")
+          li(class="list-unstyled" ng-repeat="thing in explorer.tree.content track by $index" ng-switch="thing.readable")
             div(ng-switch-when="undefined")
-              span(class="glyphicon glyphicon-folder-open")
-              a(href="" ng-click="manager.navigate.foward(thing)") {{::thing.name}}
+              div(class="col-xs-8")
+                span(class="glyphicon glyphicon-folder-open")
+                a(href="" ng-click="explorer.foward(thing)") {{::thing.name}}
+              span(class="col-xs-3") {{::thing.metadata.mtime | date:'dd/MM/yyyy HH:mm:ss'}}
             div(ng-switch-when="true")
-              span(class="glyphicon glyphicon-pencil")
-              a(href="" ng-click="manager.navigate.read(thing)") {{::thing.name}}
+              div(class="col-xs-8")
+                span(class="glyphicon glyphicon-pencil")
+                a(href="" ng-click="explorer.read(thing)") {{::thing.name}}
+              span(class="col-xs-3") {{::thing.metadata.mtime | date:'dd/MM/yyyy HH:mm:ss'}}
             div(ng-switch-when="false")
-              span(class="glyphicon glyphicon-file")
-              {{::thing.name}}
-    //b Backup schedule
-    //input(type="checkbox" id="scheduleEnabler" ng-model="manager._schedule" ng-false-value="false" ng-true-value="true")
-    //label(for="scheduleEnabler") {{manager._schedule}}
-    //div(id="scheduleConfig" ng-if="manager._schedule")
-    //  input(type="number" min="1" max="60" step="1" ng-model="manager.selected.schedule") 
-    //pre
-    //  b Status {{server.info.status}}
-    //pre
-    //  b Map {{server.info.map.metadata.name}}
-    //pre
-    //  b Exec {{server.info.exec.metadata.name}}
-    //pre
-    //  b Uptime {{server.info.uptime}}
-  tab(id="uploadBox" heading="Upload" ng-controller="uploadCtrl as upload")
-    span(id="uploadArea")
-      label(for="execFile") Choose an executable:
-        input(fileRead="upload.exec" type="file" id="execFile")
-      label(for="execName") Name:
-        input(type="text" id="execName" ng-model="upload.exec.metadata.name")
-        {{upload.exec.offset/1000000 | number:0}} MB / {{upload.exec.data.size/1000000 | number:0}} MB ({{100*upload.exec.offset/upload.exec.data.size | number:0}} %)
-      //button(type="button" ng-click="upload.start(upload.file, 'exec')" id="uploadButton") Upload
-
-      label(for="mapFile") Choose a map:
-        input(fileRead="upload.map" type="file" id="mapFile")
-      label(for="mapName") Name:
-        input(type="text" id="mapName" ng-model="upload.map.metadata.name")
-        {{upload.map.offset/1000000 | number:0}} MB / {{upload.map.data.size/1000000 | number:0}} MB ({{100*upload.map.offset/upload.map.data.size | number:0}} %)
-      //button(type="button" ng-click="upload.start(upload.file, 'exec')" id="uploadButton") Upload
-    button(type="button" ng-click="upload.start()") Upload
-
-    h5 Chunk size selector:
-    select(ng-model="upload.chunkSize")
-        option(value="4") 4 bytes
-        option(value="8") 8 bytes
-        option(value="16") 16 bytes
-        option(value="32") 32 bytes
-        option(value="64") 64 bytes
-        option(value="1024") 1024 bytes
-        option(value="5024") 5024 bytes
-        option(value="9024") 9024 bytes
-        option(value="500000") 500 KB
-        option(value="1000000") 1 MB
-        option(selected value="2000000") 2 MB
-        option(value="5000000") 5 MB
-        option(value="20000000") 20 MB
-
+              div(class="col-xs-8")
+                span(class="glyphicon glyphicon-file")
+                {{::thing.name}}
+              span(class="col-xs-3") {{::thing.metadata.mtime | date:'dd/MM/yyyy HH:mm:ss'}}
+          button(ng-if="explorer.pToken" type="button" ng-click="explorer.cancelPreview()" class="btn btn-block btn-default") Cancel
+        div(id="filePanel" ng-show="explorer.fileContent" class="form-group")
+          textarea(class="form-control" ng-model="explorer.fileContent")
+          button(type="button" class="btn btn-primary") Save
+          button(type="button" class="btn btn-danger") Cancel
+  tab(id="uploadBox" heading="Upload")
+    div(id="uploadWrapper" ng-controller="uploadCtrl as upload")
+      span(id="uploadArea")
+        label(for="execFile") Choose an executable:
+          input(fileRead="upload.exec" type="file" id="execFile")
+        label(for="execName") Name:
+          input(type="text" id="execName" ng-model="upload.exec.metadata.name")
+          {{upload.exec.offset/1000000 | number:0}} MB / {{upload.exec.data.size/1000000 | number:0}} MB ({{100*upload.exec.offset/upload.exec.data.size | number:0}} %)
+        //button(type="button" ng-click="upload.start(upload.file, 'exec')" id="uploadButton") Upload
+  
+        label(for="mapFile") Choose a map:
+          input(fileRead="upload.map" type="file" id="mapFile")
+        label(for="mapName") Name:
+          input(type="text" id="mapName" ng-model="upload.map.metadata.name")
+          {{upload.map.offset/1000000 | number:0}} MB / {{upload.map.data.size/1000000 | number:0}} MB ({{100*upload.map.offset/upload.map.data.size | number:0}} %)
+        //button(type="button" ng-click="upload.start(upload.file, 'exec')" id="uploadButton") Upload
+      button(type="button" ng-click="upload.start()") Upload
+  
+      h5 Chunk size selector:
+      select(ng-model="upload.chunkSize")
+          option(value="4") 4 bytes
+          option(value="8") 8 bytes
+          option(value="16") 16 bytes
+          option(value="32") 32 bytes
+          option(value="64") 64 bytes
+          option(value="1024") 1024 bytes
+          option(value="5024") 5024 bytes
+          option(value="9024") 9024 bytes
+          option(value="500000") 500 KB
+          option(value="1000000") 1 MB
+          option(selected value="2000000") 2 MB
+          option(value="5000000") 5 MB
+          option(value="20000000") 20 MB
+  
     h5 Manage maps and executables
   tab(id="infoBox" heading="Info")
     //button(ng-click="server.start()") Start//

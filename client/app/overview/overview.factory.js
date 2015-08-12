@@ -5,6 +5,9 @@ angular.module('MEANcraftApp.overview')
       maps: [],
       execs: [],
       selected: {},
-      tree: []
+      tree: {},
+      pToken: ''
     };
-  });
+  })
+
+  //.factory('TreeNavigation', function)

@@ -35,34 +35,40 @@ function deployServer (execId, mapId, io, callback) {
     function (matches, sMapRemoved, wCb) {
       var changes = [{parent: root, name: 'eula.txt', body: 'eula=true'}];
       console.log('EXEC ID', execId);
+      function _applyChanges (doc, aCb) {
+        var levelName = matches.sort(function (a, b) { return a.length - b.length;});
+        util.applyChanges(changes, function (err) {
+          util.setServerProperty(root, 'level-name', levelName[0], function (err) {
+            currentServer.exec = doc;
+            aCb(err);
+            //wCb(err, matches, sMapRemoved);
+          });
+        });      
+      }
+
       if (_.isPlainObject(execId) && execId.pToken && Array.isArray(execId.changes)) {
-        changes.concat(execId.changes).reverse();
+        console.log('is plain object')
+        changes = changes.concat(execId.changes).reverse();
         Model.getFileData(execId._id, function (err, doc) {
-          fse.move(path.join('./preview', execId.pToken), root, function (err) {
-            wCb(err, changes, doc, matches, sMapRemoved);
+          _applyChanges(doc, function (err) {
+            fse.move(path.join('./preview', execId.pToken), root, function (err) {
+              wCb(err, matches, sMapRemoved);
+            });
           });
         });
       } else {
         Model.extractFile(execId, {path: root, io: io}, function (err, doc) {
-          wCb(err, changes, doc, matches, sMapRemoved);          
+          _applyChanges(doc, function (err) {
+            wCb(err, matches, sMapRemoved);          
+          });
         });
       }
-    },
-    function (changes, doc, matches, sMapRemoved, wCb) {
-      var levelName = matches.sort(function (a, b) { return a.length - b.length;});
-      util.applyChanges(changes, function (err) {
-        util.setServerProperty(root, 'level-name', levelName[0], function (err) {
-          currentServer.exec = doc;
-          wCb(err, matches, sMapRemoved);
-        });
-      });
     },
     function (matches, sMapRemoved, wCb) {
     	sanitizeExec(matches, sMapRemoved, function (err, exec) {
         io.emit('stdin', '[MEANcraft] Sanitized exec files');
         wCb(err, exec);
      });
-
     },
   ], function (err, exec) {
     //console.log('currentServer after deploy', currentServer);
@@ -504,6 +510,7 @@ module.exports = function (app, serverNsp) {
   _controlNsp = serverNsp;
   _controlNsp.emit('info', {selected: currentServer});
   console.log('emitting', currentServer);
+  
   function start (message) {
   	var socket = this;
     if (message.map === null && message.exec === null) {
@@ -601,7 +608,7 @@ module.exports = function (app, serverNsp) {
     var dir = path.join('./preview', pToken);
     Model.extractFile(exec, {path: dir}, function (err, file) {
       util.getTree('./preview', function (err, tree) {
-        socket.emit('info', {tree: tree, pToken: pToken});
+        socket.emit('preview', {tree: tree, pToken: pToken});
       });
     });
   }

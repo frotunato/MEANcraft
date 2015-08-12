@@ -9,7 +9,7 @@ angular.module('MEANcraftApp.overview')
       uptime: 'Unknown'
     };
     ServerSocket.on('info', function (message) {
-      self.server = angular.extend(self.server, message);
+      self.server = angular.merge(self.server, message);
     });
   
   })
@@ -37,6 +37,7 @@ angular.module('MEANcraftApp.overview')
 
   .controller('managerCtrl', function ($scope, FetchData, ServerSocket)  {
     var self = this;
+    /*
     this.navigate = {
       current: {},
       last: [],
@@ -53,20 +54,20 @@ angular.module('MEANcraftApp.overview')
         ServerSocket.emit('read', file);
       }
     };
+    */
     (function bootstrap (initialData) {
       self.execList = initialData.execs;
       self.mapList = initialData.maps;
       self._mapGroup = (initialData.selected.map) ? initialData.maps[initialData.selected.map.metadata.name] : {};
       self._execGroup = (initialData.selected.exec) ? initialData.execs[initialData.selected.exec.metadata.name] : {};
       self.selected = initialData.selected;
-      self.navigate.current = initialData.tree;
+      //self.navigate.current = initialData.tree;
     })(FetchData);
     
     this.info = {
       status: null,
-      map: 'Unknown',
-      exec: 'Unknown',
-      uptime: 'Unknown',
+      map: {},
+      exec: {},
       lock: null
     };
 
@@ -113,20 +114,15 @@ angular.module('MEANcraftApp.overview')
       self.mapList = message.maps;
       self.execList = message.execs;
     });
-    
+
     ServerSocket.on('info', function (message) {
-      console.log(message)
       //if (message.tree) self.navigate.current = message.tree;
       //self.info = angular.extend(self.info, message);
-      console.log('receiving', message);
-      self = angular.extend(self, message);
-      
-      //var groupName = self.selected.map.metadata.name;
-      //console.log(self.selected)
-    });
-
-    ServerSocket.on('read', function (message) {
-      console.log(message);
+      console.log('before FetchData', FetchData);
+      //self = angular.merge(self, message);
+      FetchData = angular.merge(FetchData, message);
+      self = angular.merge(self, FetchData);
+      console.log('after FetchData', FetchData);
     });
 
     this.options = {};
@@ -165,9 +161,55 @@ angular.module('MEANcraftApp.overview')
     };
   })
 
+  .controller('explorerCtrl', function ($scope, FetchData, ServerSocket) {
+    var self = this;
+    var last = [];
+    this.tree = [];
+    this.pToken = FetchData.pToken;
+    this.fileContent = '';
+
+    ServerSocket.on('preview', function (message) {
+      console.log(message)
+      self.tree = message.tree;
+      self.pToken = message.pToken;
+      FetchData.pToken = message.pToken;
+    });
+
+    ServerSocket.on('read', function (message) {
+      self.fileContent = message;
+    });
+
+    this.foward = function (thing) {
+      last.push(self.tree);
+      self.tree = thing;
+    };
+    
+    this.back = function () {
+      if (last.length === 0) return;
+      if (self.fileContent) {
+        self.fileContent = '';
+        return;
+      }
+      self.tree = last.splice(-1, 1)[0];
+    };
+    
+    this.read = function (file) {
+      if (!file || !file.readable) return;
+      ServerSocket.emit('read', file);
+    };
+
+    this.cancelPreview = function () {
+      FetchData.pToken = '';
+      self.pToken = FetchData.pToken;
+      self.tree = FetchData.tree;
+    };
+
+  })
+
   .controller('uploadCtrl', function ($scope, UploadSocket) {
     var self = this;
     console.log(Date.now());
+    
     UploadSocket.on('err', function (err) {
       window.alert(err);
     });
