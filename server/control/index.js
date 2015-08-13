@@ -8,6 +8,7 @@ module.exports = function (app, serverNsp) {
 			socket.on('list', controller.list.bind(socket));
 			socket.on('stdin', controller.chat.bind(socket));
 			socket.on('read', controller.read.bind(socket));
+			socket.on('modify', controller.modify.bind(socket));
 			socket.on('preview', controller.preview.bind(socket));
 		}
 	};

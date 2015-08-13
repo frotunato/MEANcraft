@@ -34,7 +34,7 @@ function deployServer (execId, mapId, io, callback) {
     },
     function (matches, sMapRemoved, wCb) {
       var changes = [{parent: root, name: 'eula.txt', body: 'eula=true'}];
-      console.log('EXEC ID', execId);
+      
       function _applyChanges (doc, aCb) {
         var levelName = matches.sort(function (a, b) { return a.length - b.length;});
         util.applyChanges(changes, function (err) {
@@ -45,10 +45,7 @@ function deployServer (execId, mapId, io, callback) {
           });
         });      
       }
-
-      if (_.isPlainObject(execId) && execId.pToken && Array.isArray(execId.changes)) {
-        console.log('is plain object')
-        changes = changes.concat(execId.changes).reverse();
+      if (_.isPlainObject(execId) && execId.pToken) {
         Model.getFileData(execId._id, function (err, doc) {
           _applyChanges(doc, function (err) {
             fse.move(path.join('./preview', execId.pToken), root, function (err) {
@@ -522,7 +519,7 @@ module.exports = function (app, serverNsp) {
   	} else {
   		lock(true);
       console.log('starting', message);
-      var execParams = (message.changes) ? {_id: message.exec, changes: message.changes, pToken: message.pToken} : message.exec;
+      var execParams = (message.pToken) ? {_id: message.exec, pToken: message.pToken} : message.exec;
       currentServer.schedules = message.schedules;
       console.log('ControlSocket [START]', message);
       deployServer(execParams, message.map, serverNsp, function (err, exec) {
@@ -596,9 +593,19 @@ module.exports = function (app, serverNsp) {
   function read (file) {
     var socket = this;
     if (!file) return;
+    var filePath = path.join(file.parent, file.name);
     console.log(file);
-    fs.readFile(path.join(file.parent, file.name), 'utf8', function (err, data) {
+    fs.readFile(filePath, 'utf8', function (err, data) {
       socket.emit('read', data);
+    });
+  }
+
+  function modify (file) {
+    var socket = this;
+    if (!file) return;
+    var filePath = path.join(file.parent, file.name);
+    fs.writeFile(filePath, file.content, function (err) {
+      socket.emit('modify');
     });
   }
 
@@ -620,6 +627,7 @@ module.exports = function (app, serverNsp) {
     list: list,
     chat: chat,
     read: read,
+    modify: modify,
     preview: preview
   };
 };

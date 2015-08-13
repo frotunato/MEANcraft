@@ -41,7 +41,6 @@ tabset
           fieldset
             legend(class="text-center") Executable
             div(class="form-group")
-              button(type="button" ng-click="manager.preview()") Preview
               label(for="execName" class="col-sm-2 control-label") Name
               div(class="col-md-10")
                 select(required 
@@ -55,7 +54,7 @@ tabset
             
             div(class="form-group")
               label(for="execDate" class="col-sm-2 control-label") Date
-              div(class="col-md-10")
+              div(class="col-sm-8")
                 select(required 
                   ng-disabled="manager.selected.status" 
                   id="execDate" 
@@ -63,6 +62,7 @@ tabset
                   ng-model="manager.selected.exec" 
                   ng-options="exec as (exec.uploadDate | date:'dd/MM/yyyy HH:mm:ss') for exec in manager._execGroup track by exec.uploadDate")
                   option(value="") Select version
+              button(class="col-sm-2 btn btn-primary" type="button" ng-click="manager.preview()") Preview
           fieldset(class="form-group")
             legend(class="text-center") Schedule
             div
@@ -119,35 +119,41 @@ tabset
             button(type="submit" ng-if="manager.selected.status" ng-disabled="manager.selected.lock" class="btn btn-warning btn-lg btn-block") Stop
       
       div(class="col-md-6" ng-controller="explorerCtrl as explorer")
-        h4(class="text-center") Files {{explorer.pToken}}
-        button(type="button" ng-click="explorer.back()") Back
+        legend(class="text-center") Files {{explorer.pToken}}
         
         div(id="explorerHeader" class="row")
-          div(class="col-xs-8") Name
-          div(class="col-xs-3 text-center") Last modified
-        
-        ul(class="row list-group" ng-show="!explorer.fileContent")
-          li(class="list-unstyled" ng-repeat="thing in explorer.tree.content track by $index" ng-switch="thing.readable")
-            div(ng-switch-when="undefined")
-              div(class="col-xs-8")
-                span(class="glyphicon glyphicon-folder-open")
-                a(href="" ng-click="explorer.foward(thing)") {{::thing.name}}
-              span(class="col-xs-3") {{::thing.metadata.mtime | date:'dd/MM/yyyy HH:mm:ss'}}
-            div(ng-switch-when="true")
-              div(class="col-xs-8")
-                span(class="glyphicon glyphicon-pencil")
-                a(href="" ng-click="explorer.read(thing)") {{::thing.name}}
-              span(class="col-xs-3") {{::thing.metadata.mtime | date:'dd/MM/yyyy HH:mm:ss'}}
-            div(ng-switch-when="false")
-              div(class="col-xs-8")
-                span(class="glyphicon glyphicon-file")
-                {{::thing.name}}
-              span(class="col-xs-3") {{::thing.metadata.mtime | date:'dd/MM/yyyy HH:mm:ss'}}
-          button(ng-if="explorer.pToken" type="button" ng-click="explorer.cancelPreview()" class="btn btn-block btn-default") Cancel
-        div(id="filePanel" ng-show="explorer.fileContent" class="form-group")
-          textarea(class="form-control" ng-model="explorer.fileContent")
-          button(type="button" class="btn btn-primary") Save
-          button(type="button" class="btn btn-danger") Cancel
+          div(ng-if="!explorer.file.content")
+            div(class="text-center col-xs-1")
+              button(type="button" ng-click="explorer.back()" class="btn btn-xs btn-default")
+                span(class="glyphicon glyphicon-arrow-left")
+            strong(class="col-xs-7" ng-if="!explorer.file.content") Name
+            strong(class="col-xs-4 text-center" ng-if="!explorer.file.content") Last modified
+          div(ng-if="explorer.file.content")
+            strong(class="col-xs-12 text-center" ng-if="explorer.file.content") {{explorer.file.name}}
+
+        div(ng-show="!explorer.file.content")
+          ul(class="row list-group")
+            li(class="list-unstyled" ng-repeat="thing in explorer.tree.content track by thing.name" ng-switch="thing.readable")
+              div(ng-switch-when="undefined")
+                span(class="text-center col-xs-1 glyphicon glyphicon-folder-open")
+                a(class="col-xs-7" href="" ng-click="explorer.foward(thing)") {{::thing.name}}
+                span(class="col-xs-4") {{::thing.metadata.mtime | date:'dd/MM/yyyy HH:mm:ss'}}
+              div(ng-switch-when="true")
+                span(class="text-center col-xs-1 glyphicon glyphicon-pencil")
+                a(class="col-xs-7" href="" ng-click="explorer.read(thing)") {{::thing.name}}
+                span(class="col-xs-4") {{::thing.metadata.mtime | date:'dd/MM/yyyy HH:mm:ss'}}
+              div(ng-switch-when="false")
+                span(class="text-center col-xs-1 glyphicon glyphicon-file")
+                span(class="col-xs-7") {{::thing.name}}
+                span(class="col-xs-4") {{::thing.metadata.mtime | date:'dd/MM/yyyy HH:mm:ss'}}
+          div(class="bottom-btn-container" ng-if="explorer.pToken")
+            button(type="button" ng-click="explorer.acceptPreview()" class="btn btn-block btn-primary") Accept
+            button(type="button" ng-click="explorer.cancelPreview()" class="btn btn-block btn-warning") Cancel
+        div(id="filePanel" ng-if="explorer.file.content")
+          textarea(class="form-control" ng-model="explorer.file.content" class="file-view")
+          div(class="bottom-btn-container")
+            button(type="button" ng-click="explorer.save()" class="btn btn-primary") Save
+            button(type="button" ng-click="explorer.back()" class="btn btn-warning") Cancel
   tab(id="uploadBox" heading="Upload")
     div(id="uploadWrapper" ng-controller="uploadCtrl as upload")
       span(id="uploadArea")

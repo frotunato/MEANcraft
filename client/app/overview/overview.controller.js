@@ -135,23 +135,8 @@ angular.module('MEANcraftApp.overview')
         exec: self.selected.exec._id,
         map: self.selected.map._id,
         schedules: self.compileSchedules(),
+        pToken: FetchData.pToken
       };
-      if (self.pToken) {
-        obj.exec = {
-          _id: self.selected.exec._id,
-          pToken: self.pToken,
-          changes: [
-          {
-            name: 'banned-ips.json',
-            parent: 'preview\\' + self.pToken,
-            body: 'amaworrior'
-          }, {
-            name: 'bukkit.yml',
-            parent: 'preview\\' + self.pToken,
-            body: 'amaworrior2'
-          }]
-        };
-      }
       console.log(obj);
       ServerSocket.emit('start', obj);
     };
@@ -164,19 +149,23 @@ angular.module('MEANcraftApp.overview')
   .controller('explorerCtrl', function ($scope, FetchData, ServerSocket) {
     var self = this;
     var last = [];
+    
     this.tree = [];
     this.pToken = FetchData.pToken;
-    this.fileContent = '';
+    this.file = '';
 
     ServerSocket.on('preview', function (message) {
-      console.log(message)
       self.tree = message.tree;
       self.pToken = message.pToken;
       FetchData.pToken = message.pToken;
     });
 
     ServerSocket.on('read', function (message) {
-      self.fileContent = message;
+      self.file.content = message;
+    });
+
+    ServerSocket.on('modify', function () {
+      self.back();
     });
 
     this.foward = function (thing) {
@@ -186,8 +175,8 @@ angular.module('MEANcraftApp.overview')
     
     this.back = function () {
       if (last.length === 0) return;
-      if (self.fileContent) {
-        self.fileContent = '';
+      if (self.file.content) {
+        self.file = {};
         return;
       }
       self.tree = last.splice(-1, 1)[0];
@@ -195,12 +184,24 @@ angular.module('MEANcraftApp.overview')
     
     this.read = function (file) {
       if (!file || !file.readable) return;
+      self.file = file;
       ServerSocket.emit('read', file);
+    };
+
+    this.save = function () {
+      console.log('changed', self.file);
+      ServerSocket.emit('modify', self.file);
     };
 
     this.cancelPreview = function () {
       FetchData.pToken = '';
       self.pToken = FetchData.pToken;
+      self.tree = FetchData.tree;
+    };
+
+    this.acceptPreview = function () {
+      FetchData.pToken = self.pToken;
+      self.pToken = '';
       self.tree = FetchData.tree;
     };
 

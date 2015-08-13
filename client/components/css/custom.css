@@ -10,3 +10,19 @@
   border: 0;
   border-right: 1px solid #e5e5e5;
 }
+
+#explorerHeader {
+  margin-bottom: 10px;
+}
+
+.bottom-btn-container {
+  width: 100%;
+  border: 0;
+  border-top: 1px solid #e5e5e5;
+  margin-top: 5px;
+  padding: 5px;
+}
+
+.file-view {
+  margin-bottom: 10px;
+}
