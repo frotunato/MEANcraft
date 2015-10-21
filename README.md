@@ -1,7 +1,3 @@
-= =========== =
-=  MEANcraft  =
-= =========== =
-
 A Minecraft webadmin written using the MEAN stack (MongoDB, ExpressJS, AngularJS, NodeJS).
 
 It features a web interface that gives full access to anything related to server's magnament; it grants access to ingame chat through an user based system that limits the interaction with the server depending on their privileges [TODO], a resumable upload system (based in socket.io) to feed the database with maps and executables. Currently only .tar.gz and zip formats are avaible due being a cross-platform aplication.
