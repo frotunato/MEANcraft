@@ -1,6 +1,7 @@
 node_modules
 public
 temp
+game
 *.tmp
 client/bower_components
 dist
@@ -8,9 +9,7 @@ secret.json
 *.dmp
 *.log
 *.pem
-server/container
-server/temp
 *.tar
 *.gz
 *.jar
-preview/
+preview

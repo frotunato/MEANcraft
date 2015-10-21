@@ -1,10 +1,9 @@
 var mongoose = require('mongoose');
 var Schema = mongoose.Schema;
-var gridfs = require('../server.js').get('gridfs');
+var gridfs = mongoose.gfs;
 var gridSchema = new Schema({}, {strict: false});
 var ObjectId = require('mongoose').Types.ObjectId;
 var async = require('async');
-var util = require('./server.util');
 var rimraf = require('rimraf');
 var fs = require('fs');
 var tar = require('tar-fs');
@@ -13,15 +12,20 @@ var lz4 = require('lz4');
 var unzip = require('unzip2');
 var progress = require('progress-stream');
 
-function insert (readStream, data, cb) {
+function insert (readStream, data, optionalGridfs, cb) {
   //data.chunkSize = 1000000;
+  var alphaTime = Date.now();
+  console.log('[GRID.MODEL] inserting', data);
+  cb = (optionalGridfs instanceof Function) ? optionalGridfs : cb;
+  gridfs = (optionalGridfs instanceof Object) ? optionalGridfs : gridfs;
+  //optionalGridfs = optionalGridfs || gridfs;
   var writeStream = gridfs.createWriteStream(data);
-  //var writeStream = fs.createWriteStream('./temp/' + Date.now() + 'a.zip.lz4');
+  //var writeStream = fs.createWriteStream('./game/' + Date.now() + 'a.zip.lz4');
   readStream.pipe(writeStream);
   writeStream.once('close', function (file) {
-    console.log('file inserted');
+    console.log(file, 'inserted in', Date.now() - alphaTime, 'ms');
     cb(file);
-  });
+  });  
 }
 
 function appendBackup (readStream, data, cb) {
@@ -115,26 +119,20 @@ function getMapsAndBackups (callback) {
   var name;
   var prop;
   var obj;
-  async.series([
-    function (cb) {
-      cursor.each(function (err, doc) {
-        if (err) {
-          cb(err);
-        } else if (doc === null) {
-          cb();
-        } else {
-          prop = (doc.metadata.type === 'exec') ? 'execs' : 'maps';
-          name = doc.metadata.name;
-          if (!docs[prop][name]) {
-            docs[prop][name] = [];
-          }
-          docs[prop][name].push(doc);
-        }
-      });
+  
+  cursor.forEach(function (doc) {
+    if (!doc || !doc.metadata) return;
+    prop = (doc.metadata.type === 'exec') ? 'execs' : 'maps';
+    name = doc.metadata.name;
+
+    if (!docs[prop][name]) {
+      docs[prop][name] = [];
     }
-  ], function (err) {
-    callback(err, docs);
-  });
+    
+    docs[prop][name].push(doc);
+  })
+
+  callback(null, docs);
 }
 
 function getFileData (id, cb) {

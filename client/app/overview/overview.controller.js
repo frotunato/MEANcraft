@@ -77,6 +77,7 @@ angular.module('MEANcraftApp.overview')
     };
 
     this.addSchedule = function (schedule) {
+      if (!self.selected.schedules) self.selected.schedules = [];
       self.selected.schedules.push(angular.copy(schedule));
     };
 
@@ -85,10 +86,11 @@ angular.module('MEANcraftApp.overview')
     };
 
     this.compileSchedules = function () {
+      console.log('compiling this...', self.selected.schedules);
+      if (!self.selected.schedules) return [];
       var element = null;
       var compiledSchedules = [];
       var schedule = '';
-
       for (var i = self.selected.schedules.length - 1; i >= 0; i--) {
         element = self.selected.schedules[i];
         if (element.freq === 'every') {

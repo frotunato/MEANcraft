@@ -10,7 +10,7 @@ function startGameServer (body) {
     webServer.emit('stdout', data + '');
   });
   gameServer.on('exit', function (code, signal) {
-    console.log('Gameserver died', code, signal);
+    console.log('[APP] Gameserver died', code, signal);
     webServer.send({command: 'stop', body: {code: code, signal: signal}});
     gameServer = null;
   });
@@ -21,7 +21,7 @@ webServer.on('message', function (message) {
 });
 
 webServer.on('exit', function (code, signal) {
-  console.log('Webserver died, retry in 10 seconds...');
+  console.log('[APP] Webserver died, retry in 10 seconds...');
   setTimeout(function () {
     webServer = childProcess.fork('./server/server.js');
   }, 10000);
@@ -34,7 +34,7 @@ webServer.on('status', function (body) {
 
 webServer.on('stdin', function (body) {
   if (!gameServer) return;
-  console.log('writing', body);
+  console.log('[APP] writing', body);
   gameServer.stdin.write(body + '\r');
 });
 

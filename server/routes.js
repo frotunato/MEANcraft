@@ -4,8 +4,6 @@ module.exports = function (app) {
   // app.route('/:url(api|components|app|bower_components)/*')
 
   app.use('/login', require('./auth'));
-  app.use('/api/server', require('./api/server'));
-  app.use('/api/executable', require('./api/executable'));
   app.route('/app/:directory/:file') 
     .get(function (req, res) {
       res.render(req.params.directory + '/' + req.params.file);

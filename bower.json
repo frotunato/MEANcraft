@@ -6,7 +6,9 @@
     "angular-route": "latest",
     "angular-bootstrap": "latest",
     "async": "latest",
-    "bootstrap": "latest"
+    "bootstrap": "latest",
+    "angular-scroll-glue": "~2.0.6",
+    "angular-socket-io": "~0.7.0"
   },
   "resolutions": {
     "angular": "1.4.2"

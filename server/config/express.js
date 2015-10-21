@@ -3,11 +3,13 @@ var morgan = require('morgan');
 var bodyParser = require('body-parser');
 var compress = require('compression');
 var path = require('path');
-var config = require('./config.js');
 
-module.exports = function (app) {
+module.exports = function (app, config) {
   app.set('view engine', 'jade');
   app.set('appPath', path.join(config.root, 'client'));
+  app.set('serverPath', path.join(config.root, config.serverPath));
+  console.log('helo', config.serverPath)
+  app.set('previewPath', path.join(config.root, config.previewPath));
   app.set('json spaces', 0);
   app.set('views', path.join(app.get('appPath'), '/app/'));
   app.use(morgan('tiny'));

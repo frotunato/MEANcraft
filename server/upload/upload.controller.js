@@ -39,6 +39,7 @@ module.exports = function (app, uploadNsp) {
         Model.insert(readStream, {
           filename: message.filename,
           metadata: { 
+            parent_id: null,
             name: message.metadata.name,
             type: message.metadata.type,
             token: token,
@@ -62,6 +63,7 @@ module.exports = function (app, uploadNsp) {
   function ping () {
     this.emit('ping');
   }
+  
   function chunk (message) {
     console.log('UploadSocket [CHUNK]', message.token);
     if (!message) return;

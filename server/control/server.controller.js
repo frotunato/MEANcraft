@@ -7,39 +7,73 @@ var path = require('path');
 var rimraf = require('rimraf');
 var schedule = require('node-schedule');
 var _ = require('lodash');
-var root = './temp';
-var previewPool = [];
 var gameServer = new EventEmitter();
 var _controlNsp = null;
 var fse = require('fs-extra');
-var currentServer = {
-  map: null, 
-  exec: null, 
-  schedules: [],
-  status: false,
-  lock: false
-};
+var serverPath = null;
+var previewPath = null;
+var gameServerConfig = {};
+
+process.on('message', function (message) {
+  gameServer.emit(message.command, message.body);
+});
+
+process.send({command: 'status'});
+
+gameServer.on('stdout', function (body) {
+  if (gameServer && /^\[[0-9]{2}:[0-9]{2}:[0-9]{2} INFO]: Done/.test(body)) {
+    gameServer.emit('start');
+  }
+  _controlNsp.emit('stdin', body);
+});
+
+gameServer.on('start', function () {
+  unlock();
+  //gameServerConfig.set('status', true);
+  _controlNsp.emit('info', gameServerConfig);
+  setSchedule(gameServerConfig.schedules);
+  //_controlNsp.emit('stdin', '[MEANcraft] Scheduled backups are enabled');
+  //_controlNsp.emit('stdin', '[MEANcraft] Warning: scheduled backups are disabled');
+});
+
+gameServer.on('stdin', function (body) {
+  console.log('sending', body);
+  process.send({command: 'stdin', body: body});
+});
+
+gameServer.on('stop', function (body) {
+  gameServerConfig = {};
+  unlock(true);
+  if (gameServerConfig.schedule) {
+    gameServerConfig.schedule.cancel();
+    gameServerConfig.schedule = null;
+  }
+  _controlNsp.emit('info', {
+    status: (gameServerConfig) ? true : false,
+    lock: gameServerConfig.lock
+  });
+});
 
 function deployServer (execId, mapId, io, callback) {
   async.waterfall([
     function (wCb) {
-      Model.extractFile(mapId, {path: root, io: io}, wCb);
+      Model.extractFile(mapId, {path: serverPath, io: io}, wCb);
     },
     function (doc, wCb) {
-    	sanitizeMap(function (err, matches, sMapRemoved) {
-        currentServer.map = doc;
-        io.emit('stdin', '[MEANcraft] Sanitized map');
+      util.sanitizeMap(function (err, matches, sMapRemoved) {
+        gameServerConfig.map = doc;
+        if (io) io.emit('stdin', '[MEANcraft] Sanitized map');
         wCb(err, matches, sMapRemoved);
       });
     },
     function (matches, sMapRemoved, wCb) {
-      var changes = [{parent: root, name: 'eula.txt', body: 'eula=true'}];
+      var changes = [{parent: serverPath, name: 'eula.txt', body: 'eula=true'}];
       
       function _applyChanges (doc, aCb) {
         var levelName = matches.sort(function (a, b) { return a.length - b.length;});
         util.applyChanges(changes, function (err) {
-          util.setServerProperty(root, 'level-name', levelName[0], function (err) {
-            currentServer.exec = doc;
+          util.setServerProperty(serverPath, 'level-name', levelName[0], function (err) {
+            gameServerConfig.exec = doc;
             aCb(err);
             //wCb(err, matches, sMapRemoved);
           });
@@ -48,13 +82,13 @@ function deployServer (execId, mapId, io, callback) {
       if (_.isPlainObject(execId) && execId.pToken) {
         Model.getFileData(execId._id, function (err, doc) {
           _applyChanges(doc, function (err) {
-            fse.move(path.join('./preview', execId.pToken), root, function (err) {
+            fse.move(path.join('./preview', execId.pToken), serverPath, function (err) {
               wCb(err, matches, sMapRemoved);
             });
           });
         });
       } else {
-        Model.extractFile(execId, {path: root, io: io}, function (err, doc) {
+        Model.extractFile(execId, {path: serverPath, io: io}, function (err, doc) {
           _applyChanges(doc, function (err) {
             wCb(err, matches, sMapRemoved);          
           });
@@ -62,351 +96,29 @@ function deployServer (execId, mapId, io, callback) {
       }
     },
     function (matches, sMapRemoved, wCb) {
-    	sanitizeExec(matches, sMapRemoved, function (err, exec) {
-        io.emit('stdin', '[MEANcraft] Sanitized exec files');
+      util.sanitizeExec(matches, sMapRemoved, function (err, exec) {
+        if (io) io.emit('stdin', '[MEANcraft] Sanitized exec files');
         wCb(err, exec);
      });
     },
   ], function (err, exec) {
-    //console.log('currentServer after deploy', currentServer);
+    console.log('exec after deploy', exec);
     callback(err, exec);
   });
 }
 
-function sanitizeMap (callback) {
-  var _getDirs = function (base, exclude, cb) {
-    var path = require('path');
-    async.waterfall([
-      function (wCb) {
-        fs.readdir(base, wCb);
-      },
-      function (elements, wCb) {
-        elements = elements.filter(function (el) {
-          return exclude.indexOf(el) === -1;
-        });
-        var _isDir = function (element, fCb) {
-          fs.stat(path.join(base, element), function (err, stats) {
-            if (stats.isDirectory()) {
-              fCb(true);
-            } else {
-              fCb(false);
-            }
-          });
-        };
-        async.filter(elements, _isDir, function (dirs) {
-          var files = elements.filter(function (el) {
-            return dirs.indexOf(el) < 0;
-          });
-          wCb(null, dirs, files);
-        });
-      }
-    ],
-    function (err, dirs, files) {
-      cb(err, dirs, files);
-    });
-  };
-  var _isMapDir = function (directory, fCb) {
-    var matches = [];
-    var refs = ['region', 'DIM1', 'DIM-1'];
-    _getDirs(path.join(root, directory), [], function (err, nestedDirs, nestedFiles) {
-      async.each(nestedDirs,
-        function (nestedDir, eCb) {
-          if (refs.indexOf(nestedDir) !== -1) {
-            matches.push(nestedDir);
-          }
-          eCb(null);
-        },
-        function (err) {
-          if (matches.length > 0) {
-            fCb(true);
-          } else {
-            fCb(false);
-          }
-        });
-    });
-  };
-  async.waterfall([
-    function (wCb) {
-      _getDirs(root, [], wCb);
-    },
-    function (dirs, files, wCb) {
-      async.filter(dirs, _isMapDir, function (mapDirs) {
-        var dirsToRemove = dirs.filter(function (el) {
-          return mapDirs.indexOf(el) === -1;
-        });
-        var thingsToRemove = files.concat(dirsToRemove);
-        wCb(null, mapDirs, thingsToRemove);
-      });
-    }
-  ],
-    function (err, matches, removed) {
-      callback(err, matches, removed);
-  });
-}
-
-function sanitizeExec (exclude, thingsToRemove, callback) {
-  var _getExec = function (files, callback) {
-    var _isExec = function (file, fCb) {
-      var extension = file.slice(file.lastIndexOf('.'));
-      if (extension === '.jar') {
-        //console.log('potential jar here!', file);
-        util.getFileType(path.join(root, file), function (err, type) {
-          if (type !== null && type.ext === 'zip') {
-            fCb(true);
-          } else {
-            fCb(false);
-          }
-        });
-      } else {
-      	fCb(false);
-      }
-    };
-    var _priorize = function (pCb) {
-      var _pickLastATime = function (execs, lCb) {
-        var elements = [];
-        async.each(execs,
-          function (element, eCb) {
-            fs.stat(path.join(root, element), function (err, stats) {
-              elements.push({element: element, atime: stats.atime});
-              eCb(err);
-            });
-          },
-          function (err) {
-            elements.sort(function (a, b) {
-              return b.atime.getTime() - a.atime.getTime();
-            });
-            lCb(err, elements[0].element);
-          });
-      };
-      execs = execs.filter(function (el) {
-        return el.indexOf('server') !== -1 || 
-               el.indexOf('spigot') !== -1 || 
-               el.indexOf('bukkit') !== -1 ||
-               el.indexOf('minecraft') !== -1;
-      });
-      if (execs.length > 1) {
-        _pickLastATime(execs, function (err, exec) {
-          pCb(err, exec);
-        });
-      } else {
-        pCb(null, execs[0]);
-      }
-    };
-    async.filter(files, _isExec, function (execs) {
-      if (execs.length > 1) {
-        _priorize(function (err, exec) {
-          callback(err, exec);
-        });
-      } else {
-        callback(null, execs[0]);
-      }
-    });
-  };
-  var _getDirs = function (base, exclude, cb) {
-    var path = require('path');
-    async.waterfall([
-      function (wCb) {
-        fs.readdir(base, wCb);
-      },
-      function (elements, wCb) {
-        elements = elements.filter(function (el) {
-          return exclude.indexOf(el) === -1;
-        });
-        var _isDir = function (element, fCb) {
-          fs.stat(path.join(base, element), function (err, stats) {
-            if (stats.isDirectory()) {
-              fCb(true);
-            } else {
-              fCb(false);
-            }
-          });
-        };
-        async.filter(elements, _isDir, function (dirs) {
-          var files = elements.filter(function (el) {
-            return dirs.indexOf(el) < 0;
-          });
-          wCb(null, dirs, files);
-        });
-      }
-    ],
-    function (err, dirs, files) {
-      cb(err, dirs, files);
-    });
-  };
-  var _isMapDir = function (directory, fCb) {
-    var matches = [];
-    var refs = ['region', 'DIM1', 'DIM-1'];
-    _getDirs(path.join(root, directory), [], function (err, nestedDirs, nestedFiles) {
-      async.each(nestedDirs, 
-        function (nestedDir, eCb) {
-          if (refs.indexOf(nestedDir) !== -1) {
-            matches.push(nestedDir);
-          }
-          eCb(null);
-        },
-        function (err) {
-          if (matches.length > 0) {
-            fCb(true);
-          } else {
-            fCb(false);
-          }
-        });
-    });
-  };
-  async.waterfall([
-    function (wCb) {
-      var removedThings = [];
-      async.each(thingsToRemove,
-        function (thingToRemove, eCb) {
-          //console.log('things to remove', thingsToRemove);
-          rimraf(path.join(root, thingToRemove), function (err) {
-            removedThings.push(thingToRemove);
-            eCb(err);
-          });
-        },
-        function (err) {
-          console.log(err);
-          wCb(err, exclude, removedThings);
-        });
-    },
-    function (exclude, removedThings, wCb) {
-      _getDirs(root, exclude, function (err, filteredDirs, files) {
-      	wCb(err, filteredDirs, files);
-      });
-    },
-    function (filteredDirs, files, wCb) {
-      async.filter(filteredDirs, _isMapDir, function (execMapDirs) {
-        wCb(null, execMapDirs, files);
-      });
-    },
-    function (execMapDirs, files, wCb) {
-      var removedThings = [];
-      async.each(execMapDirs, 
-        function (execMapDir, eCb) {
-          rimraf(path.join(root, execMapDir), function (err) {
-            removedThings.push(execMapDir);
-            eCb(err);
-          });
-        },
-        function (err) {
-          wCb(err, removedThings, files);
-        });
-    },
-    function (sExecRemoved, files, wCb) {
-      _getExec(files, function (err, exec) {
-        wCb(err, exec, files);
-      });
-    }
-  ], function (err, exec, files) {
-    callback(err, exec, files);
-  });
-}
-
 function launchServer (exec, opts, callback) {
-	console.log('launchServer with', exec, opts);
-	process.send({
-	  command: 'start', 
-	  body: {
-	    procName: 'java', 
-	    procArgs: ['-jar', exec, 'nogui'], 
-	    procOptions: {
-	      cwd: root
-	    }
-	  }
-	});
-}
-
-function bundleServer (cb) {
-	var _getWriteStream = function (elements, callback) {
-	  var tar = require('tar-fs');
-	  var lz4 = require('lz4');
-	  var encoder = lz4.createEncoderStream();
-	  var pack = tar.pack(root, {
-	  	entries: elements
-	  });
-	  pack.pipe(encoder);
-	  callback(encoder);
-	};
-	var _fixFilename = function (filename) {
-		var tarGz = filename.indexOf(".tar.gz");
-		var zip = filename.indexOf(".zip");
-		var tarLz4 = filename.indexOf(".tar.lz4");
-		if (tarGz !== -1) {
-			filename = filename.substring(0, tarGz).concat('.tar.lz4');
-		} else if (zip !== -1) {
-			filename = filename.concat(".lz4");
-		} if (tarLz4 !== -1) {
-			return filename;
-		}
-		return filename;
-	};
-
-	async.waterfall([
-		function (wCb) {
-			sanitizeMap(wCb);
-		},
-		function (mapDirs, files, wCb) {
-			async.parallel([
-				function (pCb) {
-					_getWriteStream(mapDirs, function (writeStream) {
-						var fixedFilename = _fixFilename(currentServer.map.filename);
-					  var data = {
-					  	filename: fixedFilename,
-					  	metadata: {
-					  		name: currentServer.map.metadata.name,
-					  		type: 'map',
-					  		ext: 'lz4',
-					  		parent: currentServer.map._id
-					  	}
-					  };
-					  Model.insert(writeStream, data, function () {
-					  	console.log('finished bundling map');
-					  	pCb();
-					  });
-					});
-				},
-				function (pCb) {
-					_getWriteStream(files, function (writeStream) {
-						var fixedFilename = _fixFilename(currentServer.exec.filename);
-						var data = {
-							filename: fixedFilename,
-							metadata: {
-								name: currentServer.exec.metadata.name,
-								type: 'exec',
-								ext: 'lz4',
-								parent: currentServer.exec._id
-							}
-						};
-						Model.insert(writeStream, data, function () {
-							console.log('finished bundling exec');
-							pCb();
-						});
-					});
-				}
-			],
-				function (err) {
-					/*
-					rimraf('./temp', function () {
-						fs.mkdir('./temp', function () {
-							wCb(err);
-						});
-					});
-					*/
-					wCb(err);
-			});
-		}
-	],
-		function (err) {
-			cb(err);
-		});
-	/*
-	var threshold = 1200000; //20 minutes
-	Model.getFileData(currentServer.map, function (err, doc) {
-		console.log(err, typeof doc);
-		var d = new Date(doc.uploadDate);
-		console.log(Date.now() - doc.uploadDate.getTime());
-	});
-	*/
+  console.log('launchServer with', exec, opts);
+  process.send({
+    command: 'start', 
+    body: {
+      procName: 'java', 
+      procArgs: ['-jar', exec, 'nogui'], 
+      procOptions: {
+        cwd: serverPath
+      }
+    }
+  });
 }
 
 function addSchedule (config, fn, fnFail) {
@@ -414,7 +126,7 @@ function addSchedule (config, fn, fnFail) {
   var maxTries = 2;
   function tryIt () {
     if (currentTry < maxTries) {
-      if (currentServer.lock) {
+      if (gameServerConfig.lock) {
         currentTry ++;
         console.log('ControlSocket [ADD SCHEDULE]', 'server is currently locked, retrying in 5 seconds (' + currentTry + '/' + maxTries + ')');
         if (currentTry >= maxTries) {
@@ -430,12 +142,13 @@ function addSchedule (config, fn, fnFail) {
       if (fnFail) fnFail(job);
     }
   }
-  currentServer.schedule = schedule.scheduleJob('current_' + Date.now(), config, function () {
+  gameServerConfig.schedule = schedule.scheduleJob('current_' + Date.now(), config, function () {
     tryIt();
   });
 }
 
 function setSchedule (input) {
+  console.log('setting schedule', input)
   if (Array.isArray(input) && input.length > 0) {
     input.forEach(function (element, index, array) {
       addSchedule(element, backupSchedule, function (job) {
@@ -443,70 +156,43 @@ function setSchedule (input) {
         job.cancel();
       });
     });
-    console.log(input);
   } else {
 
   }
 }
 
 function lock (broadcast) {
-  currentServer.lock = true;
+  gameServerConfig.lock = true;
   if (broadcast) _controlNsp.emit('info', {lock: true});
 }
 
 function unlock (broadcast) {
-  currentServer.lock = false;
+  gameServerConfig.lock = false;
   if (broadcast) _controlNsp.emit('info', {lock: false});
 }
 
 function backupSchedule () {
   var alphaTime = Date.now();
+  console.log('backupSchedule executing');
   _controlNsp.emit('stdin', '[MEANcraft] Backup in progress...' );
-  lock();
-  bundleServer(function () {
-    unlock();
-    _controlNsp.emit('stdin', '[MEANcraft] Backup done (' + Math.ceil((Date.now() - alphaTime) / 1000) + ' s)');
+  gameServer.emit('stdin', 'say Backup in progress, you may experience lag');
+  lock(true);
+  util.storeServer(gameServerConfig, function () {
+    console.log('called util.storeServer');
+    unlock(true);
+    var delta = Math.ceil((Date.now() - alphaTime) / 1000);
+    _controlNsp.emit('stdin', '[MEANcraft] Backup done (' + delta + 's)');
+    gameServer.emit('stdin', 'say Backup done, time elapsed: ' + delta + 's');
   });
 }
 
-process.on('message', function (message) {
-  gameServer.emit(message.command, message.body);
-});
-
-process.send({command: 'status'});
-
-gameServer.on('stdout', function (body) {
-  if (currentServer.status === false && /^\[[0-9]{2}:[0-9]{2}:[0-9]{2} INFO]: Done/.test(body)) {
-    gameServer.emit('start');
-  }
-  _controlNsp.emit('stdin', body);
-});
-
-gameServer.on('start', function () {
-  unlock();
-  currentServer.status = true;
-  _controlNsp.emit('info', currentServer);
-  setSchedule(currentServer.schedules);
-  //_controlNsp.emit('stdin', '[MEANcraft] Scheduled backups are enabled');
-  //_controlNsp.emit('stdin', '[MEANcraft] Warning: scheduled backups are disabled');
-});
-
-gameServer.on('stop', function (body) {
-  currentServer.status = false;
-  if (currentServer.schedule !== null) {
-    currentServer.schedule.cancel();
-    currentServer.schedule = null;
-  }
-  _controlNsp.emit('info', {
-    status: currentServer.status,
-    lock: currentServer.lock
-  });
-});
-
 module.exports = function (app, serverNsp) {
   _controlNsp = serverNsp;
-  _controlNsp.emit('info', {selected: currentServer});
-  console.log('emitting', currentServer);
+  _controlNsp.emit('info', {selected: gameServerConfig});
+  serverPath = app.get('serverPath');
+  previewPath = app.get('previewPath');
+
+  console.log('emitting', gameServerConfig);
   
   function start (message) {
   	var socket = this;
@@ -514,13 +200,13 @@ module.exports = function (app, serverNsp) {
   		socket.emit('err', 'Neither map or exec were provided');
   	} else if (message.map === null && message.exec !== null) {
   		socket.emit('warn', 'No map selected, this will generate an empty one');
-  	} else if (currentServer.lock) {
+  	} else if (gameServerConfig.lock) {
   		socket.emit('err', 'There is already a server starting');
   	} else {
   		lock(true);
       console.log('starting', message);
       var execParams = (message.pToken) ? {_id: message.exec, pToken: message.pToken} : message.exec;
-      currentServer.schedules = message.schedules;
+      gameServerConfig.schedules = message.schedules;
       console.log('ControlSocket [START]', message);
       deployServer(execParams, message.map, serverNsp, function (err, exec) {
         if (err) return socket.emit('err', err);
@@ -531,14 +217,10 @@ module.exports = function (app, serverNsp) {
   }
 
   function stop () {
-  	if (!currentServer.lock) {
+  	if (!gameServerConfig.lock) {
       lock(true);
-  		bundleServer(function () {
-  			currentServer = {
-          map: null,
-          exec: null,
-          schedules: null
-        };
+  		util.storeServer(function () {
+        gameServerConfig = {};
         unlock(true);
   		});
   	} else {
@@ -549,7 +231,7 @@ module.exports = function (app, serverNsp) {
   function info () {
     var self = this;
     var obj = {
-      selected: currentServer
+      selected: gameServerConfig
     };
     async.parallel({
       docs: function (pCb) {
@@ -559,7 +241,7 @@ module.exports = function (app, serverNsp) {
         });
       },
       tree: function (pCb) {
-        util.getTree(root, function (err, tree) {
+        util.getTree(serverPath, function (err, tree) {
           //obj = _.merge({tree: tree}, obj);
           //console.log(tree);
           pCb(err, {tree: tree});
@@ -568,8 +250,8 @@ module.exports = function (app, serverNsp) {
     }, function (err, results) {
       var temp = _.merge(results.docs, results.tree);
       obj = _.merge(temp, obj);
+      console.log('sending', obj);
       self.emit('info', obj);
-      //console.log(temp)
     });
     //Model.getMapsAndBackups(function (err, docs) {
     //  obj = _.merge(docs, obj);
@@ -585,9 +267,9 @@ module.exports = function (app, serverNsp) {
   }
 
   function chat (message) {
-  	if (!message || currentServer.status === false) return;
+  	if (!message || !gameServerConfig) return;
   	console.log('ControlSocket [CHAT]', message);
-  	process.send({command: 'stdin', body: message});
+  	gameServer.emit('stdin', message);
   }
 
   function read (file) {
@@ -614,7 +296,7 @@ module.exports = function (app, serverNsp) {
     var pToken = 'PE' +  Date.now();
     var dir = path.join('./preview', pToken);
     Model.extractFile(exec, {path: dir}, function (err, file) {
-      util.getTree('./preview', function (err, tree) {
+      util.getTree(previewPath, function (err, tree) {
         socket.emit('preview', {tree: tree, pToken: pToken});
       });
     });
